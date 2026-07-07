@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>web-sim 管理台</title>
+  <script th:inline="javascript">
+    window.__WEB_SIM_CONFIG_DIR__ = [[${simulationsConfigDir}]];
+  </script>
+  <script type="module" src="/admin/assets/index.js"></script>
+  <link rel="stylesheet" href="/admin/assets/index.css" />
+</head>
+<body>
+  <div id="root">
+    <main style="max-width: 760px; margin: 72px auto; padding: 28px; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; border: 3px solid #2f2926; border-radius: 24px; box-shadow: 8px 8px 0 #2f2926; background: #fff8e8; color: #2f2926;">
+      <p style="margin: 0 0 10px; font-size: 12px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase;">web-sim admin</p>
+      <h1 style="margin: 0 0 14px; font-size: 32px; line-height: 1.1;">前端资源尚未构建</h1>
+      <p style="margin: 0 0 18px; font-weight: 700; color: #6f625b;">
+        后端已返回管理台模板，但没有找到 React 静态资源。请先在 <code>frontend</code> 目录执行依赖安装和构建，或启动 Vite 开发服务器。
+      </p>
+      <pre style="overflow: auto; padding: 16px; border: 2px solid #2f2926; border-radius: 16px; background: white; font-weight: 800;">cd frontend
+npm install
+npm run build
+
+# 或开发模式
+npm run dev</pre>
+    </main>
+  </div>
+</body>
+</html>

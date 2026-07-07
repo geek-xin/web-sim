@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">web-sim 管理后台预览</title>
+  <desc id="desc">报文模拟器管理后台，包含指标、模拟规则卡片、HTTP/TCP 标签和详情面板。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff4d6"/>
+      <stop offset="0.46" stop-color="#f7dec2"/>
+      <stop offset="1" stop-color="#dcecc9"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fffaf0"/>
+      <stop offset="1" stop-color="#f6e4c8"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#4d341f" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="720" rx="38" fill="url(#bg)"/>
+  <circle cx="112" cy="108" r="86" fill="#f7c66f" opacity="0.42"/>
+  <circle cx="1040" cy="120" r="132" fill="#7fb77e" opacity="0.2"/>
+  <circle cx="1048" cy="626" r="118" fill="#e88973" opacity="0.25"/>
+
+  <rect x="70" y="58" width="1060" height="604" rx="34" fill="#fff7e8" stroke="#3a2a1d" stroke-width="3" filter="url(#shadow)"/>
+  <rect x="70" y="58" width="1060" height="104" rx="34" fill="#2d241e"/>
+  <rect x="70" y="124" width="1060" height="38" fill="#2d241e"/>
+  <text x="110" y="122" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="40" font-weight="700" fill="#fff4d6">报文 模拟器</text>
+  <text x="110" y="148" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="16" fill="#f4d6a0">HTTP / TCP 接口模拟、分支报文、随机值与错误码</text>
+  <rect x="900" y="86" width="178" height="44" rx="22" fill="#f7c66f" stroke="#3a2a1d" stroke-width="2"/>
+  <text x="936" y="115" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="700" fill="#2d241e">新建模拟</text>
+
+  <rect x="110" y="198" width="202" height="94" rx="24" fill="#f7c66f" stroke="#3a2a1d" stroke-width="2"/>
+  <text x="136" y="232" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="16" fill="#5b3b20">配置目录</text>
+  <text x="136" y="264" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="21" font-weight="700" fill="#2d241e">.../config/simulations</text>
+
+  <rect x="334" y="198" width="148" height="94" rx="24" fill="#dcecc9" stroke="#3a2a1d" stroke-width="2"/>
+  <text x="360" y="232" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="16" fill="#46643a">HTTP</text>
+  <text x="360" y="267" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="34" font-weight="800" fill="#2d241e">12</text>
+
+  <rect x="504" y="198" width="148" height="94" rx="24" fill="#ffd5c8" stroke="#3a2a1d" stroke-width="2"/>
+  <text x="530" y="232" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="16" fill="#93412f">TCP</text>
+  <text x="530" y="267" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="34" font-weight="800" fill="#2d241e">4</text>
+
+  <rect x="674" y="198" width="404" height="94" rx="24" fill="#fffaf0" stroke="#3a2a1d" stroke-width="2"/>
+  <rect x="704" y="224" width="112" height="42" rx="21" fill="#2d241e"/>
+  <text x="738" y="252" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="17" font-weight="700" fill="#fff4d6">HTTP</text>
+  <rect x="828" y="224" width="96" height="42" rx="21" fill="#f6e4c8" stroke="#3a2a1d" stroke-width="2"/>
+  <text x="860" y="252" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="17" font-weight="700" fill="#2d241e">TCP</text>
+  <rect x="944" y="224" width="104" height="42" rx="21" fill="#fff4d6" stroke="#3a2a1d" stroke-width="2"/>
+  <text x="973" y="252" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="17" font-weight="700" fill="#2d241e">错误码</text>
+
+  <rect x="110" y="330" width="452" height="244" rx="28" fill="url(#card)" stroke="#3a2a1d" stroke-width="3"/>
+  <rect x="136" y="356" width="72" height="34" rx="17" fill="#2d241e"/>
+  <text x="154" y="379" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="15" font-weight="700" fill="#fff4d6">HTTP</text>
+  <text x="136" y="432" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="31" font-weight="800" fill="#2d241e">用户详情模拟</text>
+  <text x="136" y="468" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="22" fill="#634735">GET /api/users/{id}</text>
+  <rect x="136" y="506" width="90" height="42" rx="18" fill="#dcecc9" stroke="#3a2a1d" stroke-width="2"/>
+  <text x="161" y="533" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="16" font-weight="700" fill="#2d241e">分支 3</text>
+  <rect x="242" y="506" width="100" height="42" rx="18" fill="#ffd5c8" stroke="#3a2a1d" stroke-width="2"/>
+  <text x="267" y="533" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="16" font-weight="700" fill="#2d241e">交错返回</text>
+  <rect x="360" y="506" width="126" height="42" rx="18" fill="#f7c66f" stroke="#3a2a1d" stroke-width="2"/>
+  <text x="388" y="533" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="16" font-weight="700" fill="#2d241e">随机值</text>
+
+  <rect x="606" y="330" width="472" height="244" rx="28" fill="#fffaf0" stroke="#3a2a1d" stroke-width="3"/>
+  <text x="638" y="382" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="28" font-weight="800" fill="#2d241e">详情与分支</text>
+  <rect x="638" y="416" width="168" height="42" rx="16" fill="#2d241e"/>
+  <text x="684" y="444" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="16" font-weight="700" fill="#fff4d6">概览</text>
+  <rect x="822" y="416" width="168" height="42" rx="16" fill="#f6e4c8" stroke="#3a2a1d" stroke-width="2"/>
+  <text x="870" y="444" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="16" font-weight="700" fill="#2d241e">编辑</text>
+  <rect x="638" y="482" width="110" height="58" rx="18" fill="#dcecc9" stroke="#3a2a1d" stroke-width="2"/>
+  <text x="668" y="518" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="800" fill="#2d241e">200</text>
+  <rect x="770" y="482" width="110" height="58" rx="18" fill="#ffd5c8" stroke="#3a2a1d" stroke-width="2"/>
+  <text x="800" y="518" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="800" fill="#2d241e">500</text>
+  <rect x="902" y="482" width="110" height="58" rx="18" fill="#f7c66f" stroke="#3a2a1d" stroke-width="2"/>
+  <text x="932" y="518" font-family="PingFang SC, Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="18" font-weight="800" fill="#2d241e">429</text>
+</svg>

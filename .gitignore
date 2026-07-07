@@ -1,0 +1,40 @@
+# Maven / build outputs
+target/
+*.class
+
+# Node / frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+coverage/
+.nyc_output/
+
+# IDE / editor
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Application runtime data
+config/simulations/*.json
+!config/simulations/.gitkeep
+/logs/
+*.log
+*.pid
+
+# Local test / browser artifacts
+.playwright-cli/
+output/playwright/
+
+# Local AI/tooling directories
+.agents/
+.claude/
+.codex/
+.codegraph/
+.superpowers/
+.worktrees/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/

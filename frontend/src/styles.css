@@ -1,0 +1,273 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #F45113;
+  --color-primary-hover: #FF6A2A;
+  --color-secondary: #9EEBC5;
+  --color-accent: #BEE7F8;
+  --color-pink: #F8B8C8;
+  --color-gold: #FFF176;
+  --color-success: #18A96B;
+  --color-error: #E23B2E;
+  --color-bg: #F8F6F3;
+  --color-bg-alt: #FFF7D6;
+  --color-bg-card: #FFFFFF;
+  --color-text: #161616;
+  --color-text-muted: #6F6A64;
+  --color-text-subtle: #9B948C;
+  --color-border: #111111;
+  --color-shadow: #111111;
+  color: var(--color-text);
+  background: var(--color-bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 15px;
+  min-width: 320px;
+  min-height: 100%;
+  background: var(--color-bg);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", -apple-system, BlinkMacSystemFont, "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  background:
+    linear-gradient(90deg, rgba(17, 17, 17, 0.04) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(17, 17, 17, 0.04) 1px, transparent 1px),
+    var(--color-bg);
+  background-size: 36px 36px, 36px 36px, auto;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+code,
+pre {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.font-playful {
+  font-family: "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", ui-sans-serif, system-ui, sans-serif;
+}
+
+::selection {
+  background: rgba(244, 81, 19, 0.28);
+  color: var(--color-text);
+}
+
+#root {
+  min-height: 100vh;
+  isolation: isolate;
+}
+
+@layer components {
+  .glass-panel,
+  .clay-panel,
+  .chunky-panel {
+    @apply rounded-[24px] border-[3px] border-clay-border bg-clay-paper shadow-clay;
+  }
+
+  .glass-card-blue,
+  .clay-card-pink,
+  .chunky-card-blue {
+    background: #BEE7F8 !important;
+    border-color: var(--color-border);
+  }
+
+  .glass-card-gold,
+  .clay-card-yellow,
+  .chunky-card-yellow {
+    background: #FFF176 !important;
+    border-color: var(--color-border);
+  }
+
+  .glass-card-green,
+  .clay-card-mint,
+  .chunky-card-mint {
+    background: #9EEBC5 !important;
+    border-color: var(--color-border);
+  }
+
+  .glass-card-purple,
+  .clay-card-indigo,
+  .chunky-card-pink {
+    background: #F8B8C8 !important;
+    border-color: var(--color-border);
+  }
+
+  .glass-pressable,
+  .clay-pressable,
+  .chunky-pressable {
+    @apply transition-all duration-200 hover:-translate-y-1 hover:shadow-clay-hover active:translate-y-0 active:shadow-clay-sm;
+  }
+
+  .chunky-code {
+    @apply rounded-2xl border-[3px] border-clay-border bg-[#E3F8EE] font-mono text-sm font-bold text-clay-ink;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+
+  [data-sonner-toast] {
+    border: 3px solid var(--color-border) !important;
+    border-radius: 18px !important;
+    background: #FFFFFF !important;
+    color: var(--color-text) !important;
+    box-shadow: 3px 4px 0 rgba(17, 17, 17, 0.72) !important;
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important;
+    font-weight: 800 !important;
+  }
+
+  .hero-shell {
+    background:
+      radial-gradient(circle at top right, rgba(244, 81, 19, 0.16), transparent 30rem),
+      radial-gradient(circle at bottom left, rgba(158, 235, 197, 0.35), transparent 24rem),
+      #FFFFFF;
+  }
+
+  .hero-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.18em;
+    line-height: 0.96;
+    text-wrap: balance;
+  }
+
+  .hero-title-latin {
+    font-family: "Songti SC", "Noto Serif CJK SC", "STSong", "PingFang SC", serif;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+  }
+
+  .hero-title-cn {
+    font-family: "Songti SC", "Noto Serif CJK SC", "STSong", "PingFang SC", serif;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+  }
+
+  .workspace-title {
+    font-family: "Songti SC", "Noto Serif CJK SC", "STSong", "PingFang SC", serif;
+    font-weight: 900;
+    letter-spacing: -0.015em;
+    line-height: 1.08;
+    text-wrap: balance;
+  }
+
+  .hero-copy {
+    letter-spacing: -0.02em;
+    text-wrap: pretty;
+  }
+
+  .overview-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  }
+
+  .overview-stat-card {
+    min-height: 180px;
+  }
+
+  .overview-stat-icon {
+    width: 3.25rem;
+    height: 3.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid var(--color-border);
+    border-radius: 1rem;
+    color: var(--color-border);
+    box-shadow: 2px 3px 0 rgba(17, 17, 17, 0.72);
+  }
+
+  .flow-steps {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.55rem;
+  }
+
+  .flow-step {
+    min-width: 0;
+    min-height: 4.8rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .flow-arrow {
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid var(--color-border);
+    border-radius: 999px;
+    background: #FFFFFF;
+    color: var(--color-border);
+    box-shadow: 2px 3px 0 rgba(17, 17, 17, 0.72);
+    font-weight: 900;
+  }
+
+  .toolbar-strip {
+    align-items: center;
+  }
+
+  .empty-state-icon {
+    width: 5.5rem;
+    height: 5.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid var(--color-border);
+    border-radius: 1.75rem;
+    background: #FFFFFF;
+    color: var(--color-primary);
+    box-shadow: 5px 6px 0 rgba(17, 17, 17, 0.78);
+  }
+}
+
+@media (max-width: 640px) {
+  .flow-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .flow-arrow {
+    transform: rotate(90deg);
+    justify-self: center;
+  }
+}
