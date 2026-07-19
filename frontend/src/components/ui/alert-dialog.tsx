@@ -11,12 +11,12 @@ AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName;
 export const AlertDialogContent = React.forwardRef<React.ElementRef<typeof AlertDialogPrimitive.Content>, React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>>(({ className, ...props }, ref) => (
   <AlertDialogPortal>
     <AlertDialogOverlay />
-    <AlertDialogPrimitive.Content ref={ref} className={cn('fixed left-1/2 top-1/2 z-50 grid w-[min(92vw,480px)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-[24px] border-[3px] border-clay-border bg-white p-6 shadow-clay outline-none', className)} {...props} />
+    <AlertDialogPrimitive.Content ref={ref} className={cn('dialog-scale-root fixed left-1/2 top-1/2 z-50 grid w-[480px] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-[24px] border-[3px] border-clay-border bg-white p-6 shadow-clay outline-none', className)} {...props} />
   </AlertDialogPortal>
 ));
 AlertDialogContent.displayName = AlertDialogPrimitive.Content.displayName;
 export const AlertDialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div className={cn('flex flex-col gap-2', className)} {...props} />;
-export const AlertDialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div className={cn('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)} {...props} />;
+export const AlertDialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div className={cn('flex flex-row justify-end gap-2', className)} {...props} />;
 export const AlertDialogTitle = React.forwardRef<React.ElementRef<typeof AlertDialogPrimitive.Title>, React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Title>>(({ className, ...props }, ref) => <AlertDialogPrimitive.Title ref={ref} className={cn('text-xl font-black text-clay-ink', className)} {...props} />);
 AlertDialogTitle.displayName = AlertDialogPrimitive.Title.displayName;
 export const AlertDialogDescription = React.forwardRef<React.ElementRef<typeof AlertDialogPrimitive.Description>, React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Description>>(({ className, ...props }, ref) => <AlertDialogPrimitive.Description ref={ref} className={cn('text-sm font-semibold text-clay-muted', className)} {...props} />);

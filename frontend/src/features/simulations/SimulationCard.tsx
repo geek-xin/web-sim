@@ -1,17 +1,12 @@
-import { Copy, Eye, Pencil, Power, Trash2 } from 'lucide-react';
+import { Activity, Copy, Eye, Pencil, Power, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { formatDuration } from '@/lib/utils';
+import type { SimulationMetricsSummary } from '@/features/logs/types';
 import { countBranches, displayEndpoint, protocolBadgeVariant } from './sim-utils';
 import type { SimulationConfig } from './types';
-
-export interface SimulationMetricsSummary {
-  hits?: number | null;
-  errors?: number | null;
-  averageDurationMs?: number | null;
-}
 
 interface SimulationCardProps {
   config: SimulationConfig;
@@ -23,6 +18,7 @@ interface SimulationCardProps {
   onCopy: () => void;
   onToggle: () => void;
   onDelete: () => void;
+  onLogs: () => void;
 }
 
 export function SimulationCard({
@@ -35,6 +31,7 @@ export function SimulationCard({
   onCopy,
   onToggle,
   onDelete,
+  onLogs,
 }: SimulationCardProps) {
   const branchCount = countBranches(config);
   const defaultStatus = config.defaultResponse?.status ?? '—';
@@ -72,12 +69,12 @@ export function SimulationCard({
           <p className="mt-1 break-all font-mono text-sm font-black text-clay-ink">{displayEndpoint(config)}</p>
         </div>
 
-        <dl className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-          <Stat label="分支" value={branchCount} tone="bg-clay-accent" />
-          <Stat label="默认" value={defaultStatus} tone="bg-clay-cream" />
-          <Stat label="命中" value={hits} tone="bg-clay-secondary" />
-          <Stat label="错误" value={errors} tone="bg-clay-pink" />
-          <Stat label="平均" value={avg} tone="bg-clay-gold" />
+        <dl className="grid grid-cols-5 gap-2">
+          <Stat label="分支" value={branchCount} tone="bg-white" />
+          <Stat label="默认" value={defaultStatus} tone="bg-white" />
+          <Stat label="命中" value={hits} tone="bg-white" />
+          <Stat label="错误" value={errors} tone="bg-white" />
+          <Stat label="平均" value={avg} tone="bg-white" />
         </dl>
 
         <div className="flex flex-wrap justify-end gap-2 border-t-[3px] border-clay-border pt-4">
@@ -88,6 +85,10 @@ export function SimulationCard({
           <Button variant="outline" size="sm" onClick={onCopy} aria-label={`复制 ${config.name}`}>
             <Copy className="h-4 w-4" />
             复制
+          </Button>
+          <Button variant="outline" size="sm" onClick={onLogs} aria-label={`查看 ${config.name} 日志`}>
+            <Activity className="h-4 w-4" />
+            日志
           </Button>
           <Button variant={config.enabled ? 'orange' : 'primary'} size="sm" onClick={onToggle} aria-label={`${config.enabled ? '停用' : '启用'} ${config.name}`}>
             <Power className="h-4 w-4" />

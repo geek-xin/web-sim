@@ -1,4 +1,4 @@
-import { Plus, Search, Trash2 } from 'lucide-react';
+import { Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,8 @@ interface SimulationToolbarProps {
   onSearchChange: (value: string) => void;
   onProtocolFilterChange: (value: ProtocolFilter) => void;
   onEnabledFilterChange: (value: EnabledFilter) => void;
+  onRefresh: () => void;
+  refreshing: boolean;
   onAdd: () => void;
   onBatchDelete: () => void;
 }
@@ -46,15 +48,17 @@ export function SimulationToolbar({
   onSearchChange,
   onProtocolFilterChange,
   onEnabledFilterChange,
+  onRefresh,
+  refreshing,
   onAdd,
   onBatchDelete,
 }: SimulationToolbarProps) {
   return (
     <div className="grid gap-4" aria-labelledby={headingId}>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-row items-end justify-between gap-3">
         <div>
           <Badge variant="indigo">工作区</Badge>
-          <h2 id={headingId} className="workspace-title mt-3 text-3xl text-clay-ink sm:text-4xl">
+          <h2 id={headingId} className="workspace-title mt-3 text-4xl text-clay-ink">
             模拟规则
           </h2>
           <p className="mt-2 max-w-3xl text-sm font-bold text-clay-muted">
@@ -62,6 +66,10 @@ export function SimulationToolbar({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={onRefresh} disabled={refreshing}>
+            <RefreshCw className={refreshing ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
+            刷新
+          </Button>
           <Button variant="danger" onClick={onBatchDelete} disabled={selectedCount === 0} aria-label={`删除已选择的 ${selectedCount} 个模拟配置`}>
             <Trash2 className="h-4 w-4" />
             删除所选 {selectedCount > 0 ? `(${selectedCount})` : ''}
@@ -73,7 +81,7 @@ export function SimulationToolbar({
         </div>
       </div>
 
-      <div className="toolbar-strip grid gap-3 rounded-[24px] border-[3px] border-clay-border bg-clay-cream p-3 shadow-clay-sm xl:grid-cols-[minmax(240px,1fr)_auto_auto]">
+      <div className="toolbar-strip grid grid-cols-[minmax(240px,1fr)_auto_auto] gap-3 rounded-[24px] border-[3px] border-clay-border bg-clay-cream p-3 shadow-clay-sm">
         <label className="relative block">
           <span className="sr-only">搜索模拟配置</span>
           <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-clay-muted" />

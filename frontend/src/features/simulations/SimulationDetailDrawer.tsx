@@ -1,4 +1,4 @@
-import { AlertTriangle, Braces, FileJson, GitBranch, Pencil, RefreshCw } from 'lucide-react';
+import { AlertTriangle, FileJson, GitBranch, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -27,14 +27,13 @@ interface SimulationDetailDrawerProps {
   config: SimulationConfig | null;
   raw: RawConfigViewState;
   onOpenChange: (open: boolean) => void;
-  onEdit: (config: SimulationConfig) => void;
   onRefreshRaw: (config: SimulationConfig) => void;
 }
 
-export function SimulationDetailDrawer({ open, config, raw, onOpenChange, onEdit, onRefreshRaw }: SimulationDetailDrawerProps) {
+export function SimulationDetailDrawer({ open, config, raw, onOpenChange, onRefreshRaw }: SimulationDetailDrawerProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="left-auto right-0 !top-0 h-screen max-h-screen w-[min(96vw,780px)] translate-x-0 !translate-y-0 content-start gap-2 overflow-auto rounded-l-[32px] rounded-r-none border-y-0 border-r-0 p-4 sm:p-5">
+      <DialogContent className="left-auto right-0 !top-0 h-screen max-h-screen w-[780px] translate-x-0 !translate-y-0 content-start gap-2 overflow-auto rounded-l-[32px] rounded-r-none border-y-0 border-r-0 p-5">
         {config ? (
           <>
             <DialogHeader className="gap-0 pr-12">
@@ -46,20 +45,15 @@ export function SimulationDetailDrawer({ open, config, raw, onOpenChange, onEdit
               <DialogDescription className="mt-1">{displayEndpoint(config)}</DialogDescription>
             </DialogHeader>
 
-            <Tabs defaultValue="overview" className="-mt-1 min-h-0">
+            <Tabs defaultValue="overview" className="mt-4 min-h-0">
               <TabsList className="p-1.5">
                 <TabsTrigger value="overview" className="py-1.5">概览</TabsTrigger>
-                <TabsTrigger value="edit" className="py-1.5">编辑</TabsTrigger>
                 <TabsTrigger value="branches" className="py-1.5">分支</TabsTrigger>
                 <TabsTrigger value="raw" className="py-1.5">原始 JSON</TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview" className="mt-3">
                 <OverviewTab config={config} />
-              </TabsContent>
-
-              <TabsContent value="edit" className="mt-3">
-                <EditTab config={config} onEdit={() => onEdit(config)} />
               </TabsContent>
 
               <TabsContent value="branches" className="mt-3">
@@ -94,7 +88,7 @@ function OverviewTab({ config }: { config: SimulationConfig }) {
 
   return (
     <div className="grid gap-4">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3">
         {stats.map((stat) => (
           <Card key={stat.label} className="p-4">
             <span className="text-[0.65rem] font-black uppercase tracking-[0.16em] text-clay-muted">{stat.label}</span>
@@ -105,35 +99,14 @@ function OverviewTab({ config }: { config: SimulationConfig }) {
 
       <Card className="grid gap-3 bg-clay-cream p-4">
         <h3 className="text-lg font-black text-clay-ink">默认响应</h3>
-        <pre className="chunky-code max-h-64 overflow-auto p-4 text-xs"><code>{formatJson(config.defaultResponse)}</code></pre>
-      </Card>
-    </div>
-  );
-}
-
-function EditTab({ onEdit }: { config: SimulationConfig; onEdit: () => void }) {
-  return (
-    <div className="grid gap-4">
-      <Card className="grid gap-4 p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h3 className="text-xl font-black text-clay-ink">编辑模拟配置</h3>
-            <p className="mt-1 text-sm font-bold text-clay-muted">
-              使用统一编辑器更新基础字段、匹配规则、默认响应和分支 JSON。
-            </p>
-          </div>
-          <Button variant="primary" onClick={onEdit}>
-            <Pencil className="h-4 w-4" />
-            打开编辑器
-          </Button>
-        </div>
+        <pre className="chunky-code max-h-80 overflow-auto p-4 text-xs"><code>{formatJson(expandResponseBody(config.defaultResponse))}</code></pre>
       </Card>
     </div>
   );
 }
 
 function BranchesTab({ config }: { config: SimulationConfig }) {
-  const branches = config.branches || [];
+  const branches = expandBranchBodies(config.branches);
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -143,7 +116,7 @@ function BranchesTab({ config }: { config: SimulationConfig }) {
         </div>
         <Badge variant="yellow"><GitBranch className="mr-1 h-3 w-3" />{branches.length} 个分支</Badge>
       </div>
-      <Textarea readOnly value={formatJson(branches)} rows={22} aria-label="格式化后的分支 JSON" />
+      <Textarea readOnly value={formatJson(branches)} rows={30} aria-label="格式化后的分支 JSON" />
     </div>
   );
 }
@@ -179,8 +152,7 @@ function RawJsonTab({ config, raw, onRefresh }: { config: SimulationConfig; raw:
         </Card>
       ) : (
         <div className="grid gap-2">
-          <Badge variant="muted"><Braces className="mr-1 h-3 w-3" />文件内容</Badge>
-          <Textarea readOnly value={formatRawContent(raw.content)} rows={24} aria-label="原始模拟配置 JSON" />
+          <Textarea readOnly value={formatRawContent(raw.content)} rows={32} aria-label="原始模拟配置 JSON" />
         </div>
       )}
     </div>
@@ -189,6 +161,25 @@ function RawJsonTab({ config, raw, onRefresh }: { config: SimulationConfig; raw:
 
 function formatJson(value: unknown): string {
   return JSON.stringify(value, null, 2);
+}
+
+function expandResponseBody<T extends { body?: string | null }>(response: T): T & { body?: unknown } {
+  if (typeof response.body !== 'string') return response;
+  const text = response.body.trim();
+  if (!text) return response;
+  try {
+    return { ...response, body: JSON.parse(text) };
+  } catch (_error) {
+    return response;
+  }
+}
+
+function expandBranchBodies(branches: SimulationConfig['branches']) {
+  return (branches || []).map((branch) => ({
+    ...branch,
+    response: expandResponseBody(branch.response),
+    responseVariants: branch.responseVariants?.map(expandResponseBody) ?? branch.responseVariants,
+  }));
 }
 
 function formatRawContent(content: string | null): string {

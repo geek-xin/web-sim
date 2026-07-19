@@ -18,7 +18,7 @@ export const DialogContent = React.forwardRef<React.ElementRef<typeof DialogPrim
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
-      className={cn('fixed left-1/2 top-1/2 z-50 grid max-h-[90vh] w-[min(94vw,760px)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-auto rounded-[24px] border-[3px] border-clay-border bg-white p-6 shadow-clay outline-none', className)}
+      className={cn('dialog-scale-root fixed left-1/2 top-1/2 z-50 grid max-h-[90vh] w-[760px] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-auto rounded-[24px] border-[3px] border-clay-border bg-white p-6 shadow-clay outline-none', className)}
       {...props}
     >
       {children}
@@ -32,7 +32,7 @@ export const DialogContent = React.forwardRef<React.ElementRef<typeof DialogPrim
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 export const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div className={cn('flex flex-col gap-2 pr-8', className)} {...props} />;
-export const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div className={cn('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)} {...props} />;
+export const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => <div className={cn('flex flex-row justify-end gap-2', className)} {...props} />;
 export const DialogTitle = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Title>, React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>>(({ className, ...props }, ref) => <DialogPrimitive.Title ref={ref} className={cn('text-2xl font-black text-clay-ink', className)} {...props} />);
 DialogTitle.displayName = DialogPrimitive.Title.displayName;
 export const DialogDescription = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Description>, React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>>(({ className, ...props }, ref) => <DialogPrimitive.Description ref={ref} className={cn('text-sm font-semibold text-clay-muted', className)} {...props} />);

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Activity, AlertTriangle, Cable, FileJson, RefreshCw, ServerCog, ShieldCheck, Sparkles } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { AlertTriangle, Cable, FileJson, RefreshCw, ServerCog, ShieldCheck, Sparkles } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { SimulationDetailDrawer, type RawConfigViewState } from '@/features/simu
 import { SimulationFormDialog } from '@/features/simulations/SimulationFormDialog';
 import { SimulationToolbar, type EnabledFilter, type ProtocolFilter } from '@/features/simulations/SimulationToolbar';
 import { SimulationLogDialog } from '@/features/logs/SimulationLogDialog';
+import { parseSnapshotEvent, type SimulationLogSnapshot } from '@/features/logs/types';
 import { displayEndpoint } from '@/features/simulations/sim-utils';
 import type { SimulationConfig, SimulationConfigPayload } from '@/features/simulations/types';
 
@@ -37,6 +38,11 @@ type DetailState = {
   config: SimulationConfig | null;
 };
 
+type LogState = {
+  open: boolean;
+  config: SimulationConfig | null;
+};
+
 type RawConfigResponse = {
   fileName: string;
   content: string;
@@ -49,8 +55,12 @@ const EMPTY_RAW_STATE: RawConfigViewState = {
   error: null,
 };
 
+const DESIGN_WIDTH = 1536;
+const DESIGN_HEIGHT = 960;
+
 export default function App() {
   const configDir = readConfigDir();
+  const appScale = useViewportScale();
   const [simulations, setSimulations] = useState<SimulationConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +72,8 @@ export default function App() {
   const [deleteState, setDeleteState] = useState<DeleteState>({ open: false, ids: [] });
   const [detailState, setDetailState] = useState<DetailState>({ open: false, config: null });
   const [rawConfig, setRawConfig] = useState<RawConfigViewState>(EMPTY_RAW_STATE);
-  const [logsOpen, setLogsOpen] = useState(false);
+  const [logState, setLogState] = useState<LogState>({ open: false, config: null });
+  const [logSnapshot, setLogSnapshot] = useState<SimulationLogSnapshot | null>(null);
   const rawRequestSeq = useRef(0);
 
   const loadSimulations = useCallback(async () => {
@@ -84,6 +95,39 @@ export default function App() {
   useEffect(() => {
     void loadSimulations();
   }, [loadSimulations]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchJson<SimulationLogSnapshot>('/admin/api/logs/snapshot')
+      .then((snapshot) => {
+        if (!cancelled) setLogSnapshot(snapshot);
+      })
+      .catch(() => {
+        if (!cancelled) setLogSnapshot(null);
+      });
+
+    if (typeof EventSource === 'undefined') {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const source = new EventSource('/admin/api/logs/stream');
+    const handleSnapshot = (event: Event) => {
+      const next = parseSnapshotEvent((event as MessageEvent<string>).data);
+      if (next && !cancelled) {
+        setLogSnapshot(next);
+      }
+    };
+    source.addEventListener('snapshot', handleSnapshot);
+
+    return () => {
+      cancelled = true;
+      source.removeEventListener('snapshot', handleSnapshot);
+      source.close();
+    };
+  }, []);
 
   const loadRawConfig = useCallback(async (id: string) => {
     const requestSeq = rawRequestSeq.current + 1;
@@ -199,17 +243,17 @@ export default function App() {
   const selectedCount = selectedIds.size;
 
   return (
-    <main className="min-h-screen px-3 py-4 text-clay-ink sm:px-4 sm:py-5 lg:px-6">
-      <div className="mx-auto grid max-w-[1536px] gap-5">
-        <Hero configDir={configDir} onRefresh={loadSimulations} refreshing={loading} onCreate={() => setFormState({ open: true, mode: 'create', config: null })} onLogs={() => setLogsOpen(true)} />
+    <div className="app-scale-viewport">
+      <main className="app-scale-stage grid gap-5 text-clay-ink" style={{ '--app-scale': appScale } as CSSProperties}>
+        <Hero configDir={configDir} />
 
-        <section className="overview-grid grid gap-4" aria-label="模拟配置概览">
+        <section className="overview-grid grid grid-cols-4 gap-4" aria-label="模拟配置概览">
           {overviewCards.map((card) => (
             <OverviewCard key={card.label} {...card} />
           ))}
         </section>
 
-        <section className="chunky-panel bg-white p-4 sm:p-5" aria-labelledby="simulation-workspace-heading">
+        <section className="chunky-panel bg-white p-5" aria-labelledby="simulation-workspace-heading">
           <SimulationToolbar
             headingId="simulation-workspace-heading"
             search={search}
@@ -221,6 +265,8 @@ export default function App() {
             onSearchChange={setSearch}
             onProtocolFilterChange={setProtocolFilter}
             onEnabledFilterChange={setEnabledFilter}
+            onRefresh={loadSimulations}
+            refreshing={loading}
             onAdd={() => setFormState({ open: true, mode: 'create', config: null })}
             onBatchDelete={() => setDeleteState({ open: true, ids: [...selectedIds] })}
           />
@@ -238,16 +284,18 @@ export default function App() {
                 action={simulations.length === 0 ? <Button variant="primary" onClick={() => setFormState({ open: true, mode: 'create', config: null })}>创建模拟配置</Button> : undefined}
               />
             ) : (
-              <div className="grid gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+              <div className="grid grid-cols-3 gap-4">
                 {filteredSimulations.map((config) => (
                   <SimulationCard
                     key={config.id}
                     config={config}
+                    metricsSummary={logSnapshot?.simulationMetrics?.[config.id]}
                     selected={selectedIds.has(config.id)}
                     onSelectedChange={(selected) => setSelectedIds((current) => toggleSelected(current, config.id, selected))}
                     onView={() => handleView(config)}
                     onEdit={() => handleEdit(config)}
                     onCopy={() => setFormState({ open: true, mode: 'copy', config })}
+                    onLogs={() => setLogState({ open: true, config })}
                     onToggle={() => void handleToggle(config)}
                     onDelete={() => setDeleteState({ open: true, ids: [config.id], name: config.name })}
                   />
@@ -256,7 +304,6 @@ export default function App() {
             )}
           </div>
         </section>
-      </div>
 
       <SimulationFormDialog
         open={formState.open}
@@ -270,10 +317,13 @@ export default function App() {
         config={detailState.config}
         raw={rawConfig}
         onOpenChange={(open) => setDetailState((current) => ({ ...current, open }))}
-        onEdit={handleEdit}
         onRefreshRaw={(config) => void loadRawConfig(config.id)}
       />
-      <SimulationLogDialog open={logsOpen} onOpenChange={setLogsOpen} />
+      <SimulationLogDialog
+        open={logState.open}
+        onOpenChange={(open) => setLogState((current) => ({ ...current, open }))}
+        simulationFilter={logState.config ? { id: logState.config.id, name: logState.config.name, protocol: logState.config.protocol } : null}
+      />
       <DeleteConfirmDialog
         open={deleteState.open}
         count={deleteState.ids.length}
@@ -282,52 +332,68 @@ export default function App() {
         onConfirm={() => void handleDeleteConfirmed()}
       />
       <Toaster richColors position="top-right" />
-    </main>
+      </main>
+    </div>
   );
+}
+
+function useViewportScale() {
+  const [scale, setScale] = useState(() => calculateViewportScale());
+
+  useEffect(() => {
+    const updateScale = () => {
+      setScale(calculateViewportScale());
+    };
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    window.visualViewport?.addEventListener('resize', updateScale);
+    return () => {
+      window.removeEventListener('resize', updateScale);
+      window.visualViewport?.removeEventListener('resize', updateScale);
+    };
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--app-scale', String(scale));
+  }, [scale]);
+
+  return scale;
+}
+
+function calculateViewportScale() {
+  if (typeof window === 'undefined') {
+    return 1;
+  }
+  const viewport = window.visualViewport;
+  const width = viewport?.width ?? window.innerWidth;
+  const height = viewport?.height ?? window.innerHeight;
+  const nextScale = Math.min(1, width / DESIGN_WIDTH, height / DESIGN_HEIGHT);
+  return Math.max(0.25, Number(nextScale.toFixed(4)));
 }
 
 function Hero({
   configDir,
-  onRefresh,
-  refreshing,
-  onCreate,
-  onLogs,
 }: {
   configDir: string;
-  onRefresh: () => void;
-  refreshing: boolean;
-  onCreate: () => void;
-  onLogs: () => void;
 }) {
   const displayConfigDir = shortenConfigDir(configDir);
 
   return (
-    <section className="chunky-panel hero-shell overflow-hidden bg-clay-paper p-5 sm:p-7" aria-labelledby="web-sim-hero-title">
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-stretch">
-        <div className="flex min-h-[270px] flex-col justify-between gap-8">
+    <section className="chunky-panel hero-shell overflow-hidden bg-clay-paper p-7" aria-labelledby="web-sim-hero-title">
+      <div className="grid grid-cols-[minmax(0,1fr)_420px] items-stretch gap-6">
+        <div className="flex min-h-[270px] flex-col gap-14">
           <div className="flex flex-wrap items-center gap-3">
             <Badge variant="orange">WEB SIM</Badge>
             <Badge variant="mint">HTTP + TCP</Badge>
           </div>
           <div className="grid gap-5">
-            <h1 id="web-sim-hero-title" className="hero-title max-w-5xl text-5xl font-black text-clay-ink sm:text-7xl lg:text-8xl">
+            <h1 id="web-sim-hero-title" className="hero-title max-w-5xl text-8xl font-black text-clay-ink">
               <span className="hero-title-latin">报文</span>
               <span className="hero-title-cn">模拟器</span>
             </h1>
-            <p className="hero-copy max-w-3xl text-lg font-extrabold text-clay-muted sm:text-xl">
+            <p className="hero-copy max-w-3xl text-xl font-extrabold text-clay-muted">
               创建、筛选、复制、启停和删除 HTTP/TCP 模拟规则，配置以本地 JSON 文件保存。
             </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button variant="primary" onClick={onCreate}>创建模拟配置</Button>
-            <Button variant="outline" onClick={onRefresh} disabled={refreshing}>
-              <RefreshCw className={refreshing ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
-              刷新
-            </Button>
-            <Button variant="outline" onClick={onLogs}>
-              <Activity className="h-4 w-4" />
-              日志
-            </Button>
           </div>
         </div>
 
@@ -378,7 +444,7 @@ function OverviewCard({ label, value, detail, tone, icon }: { label: string; val
 
 function StateCard({ icon, title, detail, action }: { icon: ReactNode; title: string; detail: string; action?: ReactNode }) {
   return (
-    <Card className="glass-card-gold p-7 text-center lg:min-h-[340px]">
+    <Card className="glass-card-gold min-h-[340px] p-7 text-center">
       <div className="mx-auto flex max-w-xl flex-col items-center gap-5">
         <span className="empty-state-icon">{icon}</span>
         <div className="grid gap-3">
