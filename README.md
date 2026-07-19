@@ -1,7 +1,7 @@
 # web-sim
 
 <p align="center">
-  <img src="docs/assets/web-sim-admin-current.svg" alt="web-sim 管理后台预览" width="860">
+  <img src="docs/assets/web-sim-admin-live.png" alt="web-sim 管理后台实际运行截图" width="860">
 </p>
 
 <p align="center">
