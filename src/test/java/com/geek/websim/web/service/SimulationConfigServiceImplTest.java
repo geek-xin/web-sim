@@ -86,6 +86,38 @@ class SimulationConfigServiceImplTest {
                 .isInstanceOf(BusinessException.class);
     }
 
+    @Test
+    void importAllCreatesAndUpdatesConfigsWithProvidedIds() {
+        SimulationConfigServiceImpl service = new SimulationConfigServiceImpl(new ObjectMapper(), tempDir);
+        service.initDefaultConfigs();
+        SimulationConfig existing = service.create(httpConfig("原配置", "/old"));
+        SimulationConfig updated = httpConfig("导入更新", "/imported-old");
+        updated.setId(existing.getId());
+        SimulationConfig created = httpConfig("导入新增", "/imported-new");
+        created.setId("sim-imported-new");
+
+        List<SimulationConfig> imported = service.importAll(List.of(updated, created));
+
+        assertThat(imported).extracting(SimulationConfig::getId)
+                .containsExactly(existing.getId(), "sim-imported-new");
+        assertThat(service.getById(existing.getId()).getName()).isEqualTo("导入更新");
+        assertThat(service.getById("sim-imported-new").getHttp().getPath()).isEqualTo("/imported-new");
+    }
+
+    @Test
+    void exportAllJsonIncludesEveryConfigInAConfigsArray() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        SimulationConfigServiceImpl service = new SimulationConfigServiceImpl(objectMapper, tempDir);
+        service.initDefaultConfigs();
+        SimulationConfig one = service.create(httpConfig("导出一", "/export-one"));
+        SimulationConfig two = service.create(httpConfig("导出二", "/export-two"));
+
+        String exported = service.exportAllJson();
+
+        assertThat(objectMapper.readTree(exported).get("configs")).hasSize(2);
+        assertThat(exported).contains(one.getId(), two.getId(), "导出一", "导出二");
+    }
+
 
     @Test
     void getByIdRejectsMissingConfig() {

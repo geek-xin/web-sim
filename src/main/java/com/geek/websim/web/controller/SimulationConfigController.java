@@ -2,7 +2,10 @@ package com.geek.websim.web.controller;
 
 import com.geek.websim.common.result.Result;
 import com.geek.websim.web.model.dto.RawConfigResponse;
+import com.geek.websim.web.model.dto.SimulationConfigExportResponse;
 import com.geek.websim.web.model.dto.SimulationConfigDto;
+import com.geek.websim.web.model.dto.SimulationConfigImportRequest;
+import com.geek.websim.web.model.dto.SimulationConfigImportResponse;
 import com.geek.websim.web.model.entity.SimulationConfig;
 import com.geek.websim.web.service.SimulationConfigService;
 import com.geek.websim.web.service.SimulationRuntimeReloader;
@@ -18,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/admin/api/simulations")
@@ -47,6 +52,40 @@ public class SimulationConfigController {
         return Result.success(RawConfigResponse.builder()
                 .fileName(id + ".json")
                 .content(configService.rawJson(id))
+                .build());
+    }
+
+    @GetMapping("/export")
+    public Result<SimulationConfigExportResponse> exportAll() {
+        List<SimulationConfig> configs = configService.listAll();
+        return Result.success(SimulationConfigExportResponse.builder()
+                .fileName("web-sim-simulations.json")
+                .content(configService.exportAllJson())
+                .count(configs.size())
+                .build());
+    }
+
+    @PostMapping("/import")
+    public Result<SimulationConfigImportResponse> importConfigs(@Valid @RequestBody SimulationConfigImportRequest request) {
+        List<SimulationConfig> beforeImport = configService.listAll();
+        Set<String> existingIds = beforeImport.stream()
+                .map(SimulationConfig::getId)
+                .collect(Collectors.toSet());
+        List<SimulationConfig> imported = configService.importAll(request.toEntities());
+        try {
+            refreshRuntimeServers();
+        } catch (RuntimeException e) {
+            rollbackAfterRefreshFailure(e, () -> restoreAfterImportFailure(beforeImport, imported));
+            throw e;
+        }
+        int createdCount = (int) imported.stream()
+                .filter(config -> !existingIds.contains(config.getId()))
+                .count();
+        return Result.success(SimulationConfigImportResponse.builder()
+                .importedCount(imported.size())
+                .createdCount(createdCount)
+                .updatedCount(imported.size() - createdCount)
+                .configs(imported)
                 .build());
     }
 
@@ -123,6 +162,25 @@ public class SimulationConfigController {
             original.addSuppressed(rollbackFailure);
             log.warn("配置刷新失败后的回滚操作失败", rollbackFailure);
             return false;
+        }
+    }
+
+    private void restoreAfterImportFailure(List<SimulationConfig> beforeImport, List<SimulationConfig> imported) {
+        Set<String> importedIds = imported.stream()
+                .map(SimulationConfig::getId)
+                .collect(Collectors.toSet());
+        for (SimulationConfig previous : beforeImport) {
+            if (importedIds.contains(previous.getId())) {
+                configService.restore(previous.getId(), previous);
+            }
+        }
+        Set<String> previousIds = beforeImport.stream()
+                .map(SimulationConfig::getId)
+                .collect(Collectors.toSet());
+        for (SimulationConfig importedConfig : imported) {
+            if (!previousIds.contains(importedConfig.getId())) {
+                configService.delete(importedConfig.getId());
+            }
         }
     }
 

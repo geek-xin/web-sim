@@ -18,4 +18,6 @@ public interface SimulationConfigService {
     SimulationConfig restore(String id, SimulationConfig config);
     void delete(String id);
     String rawJson(String id);
+    List<SimulationConfig> importAll(List<SimulationConfig> configs);
+    String exportAllJson();
 }

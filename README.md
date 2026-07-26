@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://spring.io/projects/spring-boot"><img alt="Spring Boot" src="https://img.shields.io/badge/Spring%20Boot-3.5.2-6DB33F?style=flat-square&logo=springboot&logoColor=white"></a>
-  <img alt="Release" src="https://img.shields.io/badge/Release-0.1.0-111827?style=flat-square">
+  <img alt="Release" src="https://img.shields.io/badge/Release-0.1.1-111827?style=flat-square">
   <img alt="Java 21" src="https://img.shields.io/badge/Java-21-007396?style=flat-square&logo=openjdk&logoColor=white">
   <img alt="Maven" src="https://img.shields.io/badge/Maven-build-C71A36?style=flat-square&logo=apachemaven&logoColor=white">
   <img alt="React" src="https://img.shields.io/badge/UI-React%2019%20%2B%20Vite%207-149ECA?style=flat-square&logo=react&logoColor=white">
@@ -23,7 +23,7 @@
 
 `web-sim` 是一个面向本地开发、联调、测试环境和压测前置验证的轻量 HTTP/TCP 接口模拟器。它参考 `web-router` 的轻量架构和卡片式前端体验，把每个模拟请求保存为本地 JSON 配置，并通过 Spring Boot WebFlux、Reactor Netty 与 React 管理后台实现“配置即改即生效”。
 
-当前版本：`0.1.0`。
+当前版本：`0.1.1`。
 
 ## 功能总览
 
@@ -38,6 +38,7 @@
 | 随机值模板 | 响应 body/header 支持 `{{random.uuid}}`、`{{random.int:min,max}}`、`{{random.pick:a,b,c}}`、请求参数和路径变量。 |
 | 错误码模拟 | HTTP 状态码支持 `100..999`，可模拟 `400/401/403/404/429/500/502/503/504` 以及自定义业务状态。 |
 | 运行日志与指标 | 内存采样最近请求，管理台可查看 HTTP/TCP/error 计数、平均耗时和 SSE 日志快照。 |
+| 导入导出 | 管理台支持导出全部模拟配置为 JSON，也可导入导出的 `configs` 包、配置数组或单个配置对象。 |
 | 本地配置热部署 | 每条规则保存为 `config/simulations/<id>.json`；管理台或直接修改 JSON 文件后，会热加载为不可变运行时快照并原子替换。 |
 | 高并发设计 | WebFlux 非阻塞 HTTP + Reactor Netty TCP + 不可变规则快照；百万级并发目标通过多实例集群和 OS/JVM 调优承载。 |
 
@@ -124,6 +125,24 @@ npm run dev
 ```
 
 Vite 默认访问 `http://127.0.0.1:5174`，并把 `/admin/api` 代理到后端 `9998`。
+
+发布包运行方式：
+
+```bash
+# 生成 Linux/macOS tar.gz、Windows zip 以及可执行 Spring Boot JAR
+scripts/build-dist.sh --with-tests
+
+# Linux/macOS
+tar -xzf target/web-sim-0.1.1.tar.gz
+cd web-sim-0.1.1
+./run.sh
+./stop.sh
+
+# Windows
+# 解压 target/web-sim-0.1.1.zip 后，在 web-sim-0.1.1 目录执行：
+run.bat
+stop.bat
+```
 
 ## HTTP 模拟示例
 
@@ -277,6 +296,8 @@ printf 'hello\n' | nc 127.0.0.1 19001
 | `GET` | `/admin/api/simulations` | 配置列表 |
 | `GET` | `/admin/api/simulations/{id}` | 配置详情 |
 | `GET` | `/admin/api/simulations/{id}/raw` | 原始 JSON 文件内容 |
+| `GET` | `/admin/api/simulations/export` | 导出全部配置 JSON |
+| `POST` | `/admin/api/simulations/import` | 导入配置 JSON |
 | `POST` | `/admin/api/simulations` | 创建配置 |
 | `PUT` | `/admin/api/simulations/{id}` | 更新配置 |
 | `DELETE` | `/admin/api/simulations/{id}` | 删除配置 |

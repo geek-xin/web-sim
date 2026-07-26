@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react';
 import { AlertTriangle, Cable, FileJson, RefreshCw, ServerCog, ShieldCheck, Sparkles } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import { SimulationToolbar, type EnabledFilter, type ProtocolFilter } from '@/fe
 import { SimulationLogDialog } from '@/features/logs/SimulationLogDialog';
 import { parseSnapshotEvent, type SimulationLogSnapshot } from '@/features/logs/types';
 import { displayEndpoint } from '@/features/simulations/sim-utils';
+import { downloadTextFile, extractImportConfigs } from '@/features/simulations/import-export';
 import type { SimulationConfig, SimulationConfigPayload } from '@/features/simulations/types';
 
 declare global {
@@ -48,6 +49,19 @@ type RawConfigResponse = {
   content: string;
 };
 
+type SimulationExportResponse = {
+  fileName: string;
+  content: string;
+  count: number;
+};
+
+type SimulationImportResponse = {
+  importedCount: number;
+  createdCount: number;
+  updatedCount: number;
+  configs: SimulationConfig[];
+};
+
 const EMPTY_RAW_STATE: RawConfigViewState = {
   fileName: null,
   content: null,
@@ -75,6 +89,9 @@ export default function App() {
   const [logState, setLogState] = useState<LogState>({ open: false, config: null });
   const [logSnapshot, setLogSnapshot] = useState<SimulationLogSnapshot | null>(null);
   const rawRequestSeq = useRef(0);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const loadSimulations = useCallback(async () => {
     try {
@@ -240,6 +257,46 @@ export default function App() {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const data = await fetchJson<SimulationExportResponse>('/admin/api/simulations/export');
+      downloadTextFile(data.fileName || 'web-sim-simulations.json', data.content);
+      toast.success(`已导出 ${data.count} 个模拟配置。`);
+    } catch (exportError) {
+      const message = exportError instanceof Error ? exportError.message : '导出模拟配置失败。';
+      toast.error(message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleImportClick = () => {
+    importInputRef.current?.click();
+  };
+
+  const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) {
+      return;
+    }
+
+    try {
+      setImporting(true);
+      const configs = extractImportConfigs(await file.text());
+      const result = await fetchJson<SimulationImportResponse>('/admin/api/simulations/import', jsonRequest({ configs }));
+      await loadSimulations();
+      setSelectedIds(new Set());
+      toast.success(`已导入 ${result.importedCount} 个配置，新增 ${result.createdCount} 个，更新 ${result.updatedCount} 个。`);
+    } catch (importError) {
+      const message = importError instanceof Error ? importError.message : '导入模拟配置失败。';
+      toast.error(message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const selectedCount = selectedIds.size;
 
   return (
@@ -267,8 +324,20 @@ export default function App() {
             onEnabledFilterChange={setEnabledFilter}
             onRefresh={loadSimulations}
             refreshing={loading}
+            onImport={handleImportClick}
+            importing={importing}
+            onExport={() => void handleExport()}
+            exporting={exporting}
             onAdd={() => setFormState({ open: true, mode: 'create', config: null })}
             onBatchDelete={() => setDeleteState({ open: true, ids: [...selectedIds] })}
+          />
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            aria-label="导入模拟配置 JSON 文件"
+            onChange={(event) => void handleImportFile(event)}
           />
 
           <div className="mt-5">

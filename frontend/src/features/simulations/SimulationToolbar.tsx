@@ -1,4 +1,4 @@
-import { Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
+import { Download, Plus, RefreshCw, Search, Trash2, Upload } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,10 @@ interface SimulationToolbarProps {
   onEnabledFilterChange: (value: EnabledFilter) => void;
   onRefresh: () => void;
   refreshing: boolean;
+  onImport: () => void;
+  importing: boolean;
+  onExport: () => void;
+  exporting: boolean;
   onAdd: () => void;
   onBatchDelete: () => void;
 }
@@ -50,6 +54,10 @@ export function SimulationToolbar({
   onEnabledFilterChange,
   onRefresh,
   refreshing,
+  onImport,
+  importing,
+  onExport,
+  exporting,
   onAdd,
   onBatchDelete,
 }: SimulationToolbarProps) {
@@ -69,6 +77,14 @@ export function SimulationToolbar({
           <Button variant="outline" onClick={onRefresh} disabled={refreshing}>
             <RefreshCw className={refreshing ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
             刷新
+          </Button>
+          <Button variant="outline" onClick={onImport} disabled={importing} aria-label="导入模拟配置 JSON 文件">
+            <Upload className={importing ? 'h-4 w-4 animate-pulse' : 'h-4 w-4'} />
+            导入
+          </Button>
+          <Button variant="outline" onClick={onExport} disabled={exporting} aria-label="导出全部模拟配置">
+            <Download className={exporting ? 'h-4 w-4 animate-pulse' : 'h-4 w-4'} />
+            导出
           </Button>
           <Button variant="danger" onClick={onBatchDelete} disabled={selectedCount === 0} aria-label={`删除已选择的 ${selectedCount} 个模拟配置`}>
             <Trash2 className="h-4 w-4" />

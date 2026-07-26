@@ -30,10 +30,12 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -154,6 +156,49 @@ public class SimulationConfigServiceImpl implements SimulationConfigService {
             throw new BusinessException(ErrorCodeEnum.NOT_FOUND, "配置不存在");
         } catch (IOException e) {
             throw new BusinessException(ErrorCodeEnum.CONFIG_IO_ERROR, "配置读取失败");
+        }
+    }
+
+    @Override
+    public synchronized List<SimulationConfig> importAll(List<SimulationConfig> configs) {
+        initDefaultConfigs();
+        if (configs == null || configs.isEmpty()) {
+            throw new BusinessException(ErrorCodeEnum.BAD_REQUEST, "导入配置不能为空");
+        }
+
+        List<SimulationConfig> normalizedConfigs = new ArrayList<>();
+        Set<String> importedIds = new HashSet<>();
+        for (SimulationConfig config : configs) {
+            SimulationConfig normalized = normalizeForWrite(config);
+            String id = isBlank(normalized.getId()) ? generateId() : validateId(normalized.getId().trim());
+            if (!importedIds.add(id)) {
+                throw new BusinessException(ErrorCodeEnum.BAD_REQUEST, "导入配置ID重复");
+            }
+            normalized.setId(id);
+            normalizedConfigs.add(normalized);
+        }
+
+        ensureImportHasUniqueNames(normalizedConfigs);
+        ensureImportHasUniqueTcpBindings(normalizedConfigs);
+        ensureImportDoesNotConflictWithExisting(normalizedConfigs, importedIds);
+        for (SimulationConfig config : normalizedConfigs) {
+            writeConfig(config);
+        }
+        return normalizedConfigs;
+    }
+
+    @Override
+    public String exportAllJson() {
+        Map<String, Object> export = new LinkedHashMap<>();
+        List<SimulationConfig> configs = listAll();
+        export.put("format", "web-sim.simulations.v1");
+        export.put("exportedAt", Instant.now().toString());
+        export.put("count", configs.size());
+        export.put("configs", configs);
+        try {
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(export);
+        } catch (IOException e) {
+            throw new BusinessException(ErrorCodeEnum.CONFIG_IO_ERROR, "配置导出失败");
         }
     }
 
@@ -403,6 +448,55 @@ public class SimulationConfigServiceImpl implements SimulationConfigService {
         } catch (IOException e) {
             throw new BusinessException(ErrorCodeEnum.CONFIG_IO_ERROR, "配置读取失败");
         }
+    }
+
+    private void ensureImportHasUniqueNames(List<SimulationConfig> configs) {
+        Set<String> names = new HashSet<>();
+        for (SimulationConfig config : configs) {
+            if (!names.add(config.getName())) {
+                throw new BusinessException(ErrorCodeEnum.DUPLICATE_NAME, "导入配置中模拟名称重复");
+            }
+        }
+    }
+
+    private void ensureImportHasUniqueTcpBindings(List<SimulationConfig> configs) {
+        Set<Integer> ports = new HashSet<>();
+        for (SimulationConfig config : configs) {
+            if (!config.isEnabled() || config.getProtocol() != ProtocolType.TCP || config.getTcp() == null) {
+                continue;
+            }
+            Integer port = config.getTcp().getPort();
+            if (!ports.add(port)) {
+                throw new BusinessException(ErrorCodeEnum.DUPLICATE_BINDING, "导入配置中TCP监听端口重复");
+            }
+        }
+    }
+
+    private void ensureImportDoesNotConflictWithExisting(List<SimulationConfig> configs, Set<String> importedIds) {
+        List<SimulationConfig> existingConfigs = listAll();
+        for (SimulationConfig config : configs) {
+            for (SimulationConfig existing : existingConfigs) {
+                if (importedIds.contains(existing.getId())) {
+                    continue;
+                }
+                if (existing.getName() != null && existing.getName().trim().equals(config.getName())) {
+                    throw new BusinessException(ErrorCodeEnum.DUPLICATE_NAME, "模拟名称已存在");
+                }
+                if (isTcpBindingConflict(config, existing)) {
+                    throw new BusinessException(ErrorCodeEnum.DUPLICATE_BINDING, "TCP监听端口已被占用");
+                }
+            }
+        }
+    }
+
+    private boolean isTcpBindingConflict(SimulationConfig candidate, SimulationConfig existing) {
+        return candidate.isEnabled()
+                && candidate.getProtocol() == ProtocolType.TCP
+                && candidate.getTcp() != null
+                && existing.isEnabled()
+                && existing.getProtocol() == ProtocolType.TCP
+                && existing.getTcp() != null
+                && candidate.getTcp().getPort().equals(existing.getTcp().getPort());
     }
 
     private void writeConfig(SimulationConfig config) {
