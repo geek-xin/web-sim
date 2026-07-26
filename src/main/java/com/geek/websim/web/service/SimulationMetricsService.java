@@ -12,11 +12,19 @@ public interface SimulationMetricsService {
                 long durationMs,
                 Supplier<SimulationLogEntry> sampledEntrySupplier);
 
+    default void record(String simulationId,
+                        ProtocolType protocol,
+                        int status,
+                        long durationMs,
+                        Supplier<SimulationLogEntry> sampledEntrySupplier) {
+        record(protocol, status, durationMs, sampledEntrySupplier);
+    }
+
     default void record(SimulationLogEntry entry) {
         if (entry == null) {
             return;
         }
-        record(entry.getProtocol(), entry.getStatus(), entry.getDurationMs(), () -> entry);
+        record(entry.getSimulationId(), entry.getProtocol(), entry.getStatus(), entry.getDurationMs(), () -> entry);
     }
 
     SimulationLogSnapshot snapshot();

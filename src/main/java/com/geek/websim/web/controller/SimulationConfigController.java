@@ -1,13 +1,11 @@
 package com.geek.websim.web.controller;
 
 import com.geek.websim.common.result.Result;
-import com.geek.websim.runtime.SimulationRuleSnapshot;
-import com.geek.websim.runtime.tcp.TcpSimulationServerManager;
 import com.geek.websim.web.model.dto.RawConfigResponse;
 import com.geek.websim.web.model.dto.SimulationConfigDto;
 import com.geek.websim.web.model.entity.SimulationConfig;
 import com.geek.websim.web.service.SimulationConfigService;
-import com.geek.websim.web.service.SimulationRuntimeService;
+import com.geek.websim.web.service.SimulationRuntimeReloader;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -26,15 +24,12 @@ import java.util.List;
 @Slf4j
 public class SimulationConfigController {
     private final SimulationConfigService configService;
-    private final SimulationRuntimeService runtimeService;
-    private final TcpSimulationServerManager tcpSimulationServerManager;
+    private final SimulationRuntimeReloader runtimeReloader;
 
     public SimulationConfigController(SimulationConfigService configService,
-                                      SimulationRuntimeService runtimeService,
-                                      TcpSimulationServerManager tcpSimulationServerManager) {
+                                      SimulationRuntimeReloader runtimeReloader) {
         this.configService = configService;
-        this.runtimeService = runtimeService;
-        this.tcpSimulationServerManager = tcpSimulationServerManager;
+        this.runtimeReloader = runtimeReloader;
     }
 
     @GetMapping
@@ -146,8 +141,6 @@ public class SimulationConfigController {
     }
 
     private void refreshRuntimeServers() {
-        SimulationRuleSnapshot snapshot = runtimeService.compile();
-        tcpSimulationServerManager.refreshServers(snapshot);
-        runtimeService.publish(snapshot);
+        runtimeReloader.reload();
     }
 }

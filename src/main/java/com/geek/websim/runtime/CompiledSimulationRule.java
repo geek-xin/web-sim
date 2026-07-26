@@ -25,6 +25,7 @@ public class CompiledSimulationRule {
     private final PathTemplate pathTemplate;
     private final List<SimulationBranch> sortedBranches;
     private final List<AtomicLong> branchResponseSequences;
+    private final AtomicLong defaultBranchSequence = new AtomicLong();
 
     public CompiledSimulationRule(SimulationConfig config) {
         SimulationConfig frozenConfig = deepCopy(config);
@@ -73,6 +74,18 @@ public class CompiledSimulationRule {
         }
         int selectedIndex = selectedResponseIndex(branch, branchIndex, responses.size());
         return copyResponse(responses.get(selectedIndex));
+    }
+
+    int selectDefaultOrUnconditionalBranch(List<Integer> branchIndexes) {
+        if (branchIndexes == null || branchIndexes.isEmpty()) {
+            return -1;
+        }
+        if (branchIndexes.stream().anyMatch(index -> probability(sortedBranches.get(index)) != null)) {
+            return selectByProbability(branchIndexes);
+        }
+        long sequence = defaultBranchSequence.getAndIncrement();
+        int selectedSlot = Math.floorMod(sequence, branchIndexes.size() + 1);
+        return selectedSlot == 0 ? -1 : branchIndexes.get(selectedSlot - 1);
     }
 
     private static PathTemplate compileTemplate(SimulationConfig config) {
@@ -128,6 +141,26 @@ public class CompiledSimulationRule {
         }
         long sequence = branchResponseSequences.get(branchIndex).getAndIncrement();
         return Math.floorMod(sequence, responseCount);
+    }
+
+    private int selectByProbability(List<Integer> branchIndexes) {
+        double random = ThreadLocalRandom.current().nextDouble();
+        double cumulative = 0;
+        for (Integer branchIndex : branchIndexes) {
+            SimulationBranch branch = sortedBranches.get(branchIndex);
+            cumulative += probability(branch) == null ? 0 : probability(branch);
+            if (random < cumulative) {
+                return branchIndex;
+            }
+        }
+        return -1;
+    }
+
+    private Double probability(SimulationBranch branch) {
+        if (branch == null || branch.getProbability() == null) {
+            return null;
+        }
+        return Math.max(0, Math.min(1, branch.getProbability()));
     }
 
     private static List<SimulationResponse> responseCycle(SimulationBranch branch) {
@@ -212,6 +245,7 @@ public class CompiledSimulationRule {
                 .response(copyResponse(source.getResponse()))
                 .responseVariants(copyResponses(source.getResponseVariants()))
                 .variantStrategy(source.getVariantStrategy())
+                .probability(source.getProbability())
                 .build();
     }
 

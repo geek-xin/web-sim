@@ -44,6 +44,7 @@ export interface SimulationBranch {
   response: SimulationResponse;
   responseVariants?: SimulationResponse[] | null;
   variantStrategy?: ResponseVariantStrategy | null;
+  probability?: number | null;
 }
 
 export interface SimulationConfig {

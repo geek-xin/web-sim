@@ -1,4 +1,4 @@
-import type { ProtocolType, SimulationConfig, SimulationConfigPayload } from './types';
+import type { ProtocolType, SimulationBranch, SimulationConfig, SimulationConfigPayload } from './types';
 
 export function displayEndpoint(config: SimulationConfig): string {
   if (config.protocol === 'HTTP') {
@@ -19,6 +19,37 @@ export function countBranches(config: Pick<SimulationConfig, 'branches'>): numbe
 
 export function protocolBadgeVariant(protocol: ProtocolType): 'indigo' | 'mint' {
   return protocol === 'HTTP' ? 'indigo' : 'mint';
+}
+
+export function hasErrorBranch(branches: SimulationBranch[]): boolean {
+  return branches.some(isErrorBranch);
+}
+
+export function hasEnabledErrorBranch(branches: SimulationBranch[]): boolean {
+  return branches.some((branch) => isErrorBranch(branch) && branch.probability !== 0);
+}
+
+export function setErrorBranchesEnabled(branches: SimulationBranch[], enabled: boolean): SimulationBranch[] {
+  return branches.map((branch) => {
+    if (!isErrorBranch(branch)) {
+      return branch;
+    }
+    return {
+      ...branch,
+      probability: enabled ? enabledErrorProbability(branch.probability) : 0,
+    };
+  });
+}
+
+function isErrorBranch(branch: SimulationBranch): boolean {
+  const branchName = branch.name.toLowerCase();
+  return branchName.includes('错误')
+    || branchName.includes('error')
+    || Number(branch.response?.status ?? 0) >= 400;
+}
+
+function enabledErrorProbability(probability?: number | null): number {
+  return typeof probability === 'number' && probability > 0 ? probability : 0.5;
 }
 
 export function defaultPayload(protocol: ProtocolType): SimulationConfigPayload {
@@ -225,6 +256,10 @@ export function validatePayload(payload: SimulationConfigPayload): string[] {
 
     if (branch.variantStrategy != null && !RESPONSE_VARIANT_STRATEGIES.has(String(branch.variantStrategy))) {
       errors.push(`${branchLabel} 响应变体策略无效。`);
+    }
+
+    if (branch.probability != null && (typeof branch.probability !== 'number' || branch.probability < 0 || branch.probability > 1)) {
+      errors.push(`${branchLabel} 出现概率必须是 0 到 1 之间的数字。`);
     }
 
     if (branch.conditions != null && !Array.isArray(branch.conditions)) {

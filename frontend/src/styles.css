@@ -111,7 +111,7 @@ h6,
   }
 
   .app-scale-viewport {
-    padding-bottom: calc(var(--app-design-height) * var(--app-scale));
+    padding-bottom: 1.5rem;
   }
 }
 

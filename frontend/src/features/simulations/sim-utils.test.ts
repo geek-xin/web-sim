@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { SimulationConfig, SimulationConfigPayload } from './types';
-import { defaultPayload, displayEndpoint, validatePayload } from './sim-utils';
+import {
+  defaultPayload,
+  displayEndpoint,
+  hasEnabledErrorBranch,
+  setErrorBranchesEnabled,
+  validatePayload,
+} from './sim-utils';
 
 describe('simulation utilities', () => {
   it('formats HTTP endpoints with method and path', () => {
@@ -194,6 +200,33 @@ describe('simulation utilities', () => {
     } satisfies SimulationConfigPayload;
 
     expect(validatePayload(payload)).not.toContain('分支 1 条件 1 值不能为空。');
+  });
+
+  it('toggles error branches with probability', () => {
+    const branches = [
+      {
+        name: '错误分支',
+        priority: 10,
+        conditions: [],
+        probability: 0.5,
+        response: { status: 503, headers: {}, body: 'error' },
+      },
+      {
+        name: '普通分支',
+        priority: 20,
+        conditions: [],
+        response: { status: 200, headers: {}, body: 'ok' },
+      },
+    ];
+
+    const disabled = setErrorBranchesEnabled(branches, false);
+    expect(disabled[0]?.probability).toBe(0);
+    expect(disabled[1]?.probability).toBeUndefined();
+    expect(hasEnabledErrorBranch(disabled)).toBe(false);
+
+    const enabled = setErrorBranchesEnabled(disabled, true);
+    expect(enabled[0]?.probability).toBe(0.5);
+    expect(hasEnabledErrorBranch(enabled)).toBe(true);
   });
 
 });

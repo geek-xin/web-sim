@@ -2,6 +2,7 @@ package com.geek.websim.web.controller;
 
 import com.geek.websim.web.model.dto.SimulationLogEntry;
 import com.geek.websim.web.model.dto.SimulationLogSnapshot;
+import com.geek.websim.web.model.dto.SimulationMetricsSummary;
 import com.geek.websim.web.model.enums.ProtocolType;
 import com.geek.websim.web.service.SimulationMetricsService;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,7 @@ import reactor.test.StepVerifier;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 class SimulationLogControllerTest {
@@ -37,7 +39,9 @@ class SimulationLogControllerTest {
                 .jsonPath("$.data.totalRequests").isEqualTo(7)
                 .jsonPath("$.data.httpRequests").isEqualTo(5)
                 .jsonPath("$.data.tcpRequests").isEqualTo(2)
-                .jsonPath("$.data.errorRequests").isEqualTo(1);
+                .jsonPath("$.data.errorRequests").isEqualTo(1)
+                .jsonPath("$.data.simulationMetrics.sim-a.hits").isEqualTo(7)
+                .jsonPath("$.data.simulationMetrics.sim-a.errors").isEqualTo(1);
     }
 
     @Test
@@ -75,6 +79,11 @@ class SimulationLogControllerTest {
                     .tcpRequests(2)
                     .errorRequests(1)
                     .averageDurationMs(12.5)
+                    .simulationMetrics(Map.of("sim-a", SimulationMetricsSummary.builder()
+                            .hits(7)
+                            .errors(1)
+                            .averageDurationMs(12.5)
+                            .build()))
                     .recentLogs(List.of())
                     .build();
         }

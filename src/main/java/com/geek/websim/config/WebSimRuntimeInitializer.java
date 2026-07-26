@@ -1,27 +1,20 @@
 package com.geek.websim.config;
 
-import com.geek.websim.runtime.SimulationRuleSnapshot;
-import com.geek.websim.runtime.tcp.TcpSimulationServerManager;
-import com.geek.websim.web.service.SimulationRuntimeService;
+import com.geek.websim.web.service.SimulationRuntimeReloader;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
 @Component
 public class WebSimRuntimeInitializer implements ApplicationRunner {
-    private final SimulationRuntimeService runtimeService;
-    private final TcpSimulationServerManager tcpSimulationServerManager;
+    private final SimulationRuntimeReloader runtimeReloader;
 
-    public WebSimRuntimeInitializer(SimulationRuntimeService runtimeService,
-                                    TcpSimulationServerManager tcpSimulationServerManager) {
-        this.runtimeService = runtimeService;
-        this.tcpSimulationServerManager = tcpSimulationServerManager;
+    public WebSimRuntimeInitializer(SimulationRuntimeReloader runtimeReloader) {
+        this.runtimeReloader = runtimeReloader;
     }
 
     @Override
     public void run(ApplicationArguments args) {
-        SimulationRuleSnapshot snapshot = runtimeService.compile();
-        tcpSimulationServerManager.refreshServers(snapshot);
-        runtimeService.publish(snapshot);
+        runtimeReloader.reload();
     }
 }

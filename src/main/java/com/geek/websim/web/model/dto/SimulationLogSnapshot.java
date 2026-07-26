@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -17,5 +18,6 @@ public class SimulationLogSnapshot {
     private long tcpRequests;
     private long errorRequests;
     private double averageDurationMs;
+    private Map<String, SimulationMetricsSummary> simulationMetrics;
     private List<SimulationLogEntry> recentLogs;
 }

@@ -1,7 +1,7 @@
 # web-sim
 
 <p align="center">
-  <img src="docs/assets/web-sim-admin-live.png" alt="web-sim 管理后台实际运行截图" width="860">
+  <img src="docs/assets/web-sim-admin-live.jpeg" alt="web-sim 管理后台实际运行截图" width="860">
 </p>
 
 <p align="center">
@@ -38,7 +38,7 @@
 | 随机值模板 | 响应 body/header 支持 `{{random.uuid}}`、`{{random.int:min,max}}`、`{{random.pick:a,b,c}}`、请求参数和路径变量。 |
 | 错误码模拟 | HTTP 状态码支持 `100..999`，可模拟 `400/401/403/404/429/500/502/503/504` 以及自定义业务状态。 |
 | 运行日志与指标 | 内存采样最近请求，管理台可查看 HTTP/TCP/error 计数、平均耗时和 SSE 日志快照。 |
-| 本地配置存储 | 每条规则保存为 `config/simulations/<id>.json`，运行时编译成不可变快照并原子替换。 |
+| 本地配置热部署 | 每条规则保存为 `config/simulations/<id>.json`；管理台或直接修改 JSON 文件后，会热加载为不可变运行时快照并原子替换。 |
 | 高并发设计 | WebFlux 非阻塞 HTTP + Reactor Netty TCP + 不可变规则快照；百万级并发目标通过多实例集群和 OS/JVM 调优承载。 |
 
 ## 技术栈
@@ -108,13 +108,13 @@ cd ..
 mvn spring-boot:run
 ```
 
-默认监听：`127.0.0.1:8091`。
+默认监听：`127.0.0.1:9998`。
 
 启动后访问：
 
-- 管理后台：<http://localhost:8091/admin>
-- 健康检查：<http://localhost:8091/actuator/health>
-- 指标快照：<http://localhost:8091/admin/api/logs/snapshot>
+- 管理后台：<http://localhost:9998/admin>
+- 健康检查：<http://localhost:9998/actuator/health>
+- 指标快照：<http://localhost:9998/admin/api/logs/snapshot>
 
 前端开发模式：
 
@@ -123,14 +123,14 @@ cd frontend
 npm run dev
 ```
 
-Vite 默认访问 `http://127.0.0.1:5174`，并把 `/admin/api` 代理到后端 `8091`。
+Vite 默认访问 `http://127.0.0.1:5174`，并把 `/admin/api` 代理到后端 `9998`。
 
 ## HTTP 模拟示例
 
 创建一个 HTTP 模拟接口：
 
 ```bash
-curl -X POST http://localhost:8091/admin/api/simulations \
+curl -X POST http://localhost:9998/admin/api/simulations \
   -H 'Content-Type: application/json' \
   -d '{
     "name": "用户详情模拟",
@@ -158,8 +158,8 @@ curl -X POST http://localhost:8091/admin/api/simulations \
 调用模拟接口：
 
 ```bash
-curl http://localhost:8091/api/users/42
-curl 'http://localhost:8091/api/users/42?error=true'
+curl http://localhost:9998/api/users/42
+curl 'http://localhost:9998/api/users/42?error=true'
 ```
 
 ## 交错响应示例
@@ -205,7 +205,7 @@ curl 'http://localhost:8091/api/users/42?error=true'
 创建一个 line-based TCP 模拟：
 
 ```bash
-curl -X POST http://localhost:8091/admin/api/simulations \
+curl -X POST http://localhost:9998/admin/api/simulations \
   -H 'Content-Type: application/json' \
   -d '{
     "name": "TCP echo 模拟",
@@ -283,6 +283,12 @@ printf 'hello\n' | nc 127.0.0.1 19001
 | `POST` | `/admin/api/simulations/{id}/toggle` | 启停配置 |
 | `GET` | `/admin/api/logs/snapshot` | 指标与最近日志快照 |
 | `GET` | `/admin/api/logs/stream` | SSE 日志快照流 |
+
+## 配置热部署
+
+- 默认监听 `web-sim.config-dir` 指向的目录，`*.json` 创建、修改或删除后会自动重新编译规则并刷新 HTTP/TCP 运行时。
+- `web-sim.hot-reload-enabled=false` 可关闭文件监听；`web-sim.hot-reload-debounce-ms` 控制文件变更后的防抖时间，默认 `500` 毫秒。
+- 热部署失败时会继续使用上一份可用运行时快照，并在日志中记录失败原因。
 
 ## 性能与百万并发说明
 

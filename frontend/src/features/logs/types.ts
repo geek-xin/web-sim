@@ -18,7 +18,14 @@ export interface SimulationLogSnapshot {
   tcpRequests: number;
   errorRequests: number;
   averageDurationMs: number;
+  simulationMetrics?: Record<string, SimulationMetricsSummary>;
   recentLogs: SimulationLogEntry[];
+}
+
+export interface SimulationMetricsSummary {
+  hits: number;
+  errors: number;
+  averageDurationMs: number;
 }
 
 export function parseSnapshotEvent(data: string): SimulationLogSnapshot | null {
@@ -37,6 +44,7 @@ function isSnapshot(value: unknown): value is SimulationLogSnapshot {
   if (!isNumber(value.tcpRequests)) return false;
   if (!isNumber(value.errorRequests)) return false;
   if (!isNumber(value.averageDurationMs)) return false;
+  if (value.simulationMetrics != null && !isSimulationMetricsRecord(value.simulationMetrics)) return false;
   if (!Array.isArray(value.recentLogs)) return false;
   return value.recentLogs.every(isLogEntry);
 }
@@ -66,4 +74,14 @@ function isNumber(value: unknown): value is number {
 
 function optionalString(value: unknown): value is string | null | undefined {
   return value == null || typeof value === 'string';
+}
+
+function isSimulationMetricsRecord(value: unknown): value is Record<string, SimulationMetricsSummary> {
+  if (!isRecord(value)) return false;
+  return Object.values(value).every(isSimulationMetricsSummary);
+}
+
+function isSimulationMetricsSummary(value: unknown): value is SimulationMetricsSummary {
+  if (!isRecord(value)) return false;
+  return isNumber(value.hits) && isNumber(value.errors) && isNumber(value.averageDurationMs);
 }

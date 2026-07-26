@@ -1,6 +1,6 @@
 server:
   address: 127.0.0.1
-  port: 8091
+  port: 9998
 
 spring:
   application:
@@ -20,7 +20,11 @@ web-sim:
   config-dir: config/simulations
   max-body-bytes: 1048576
   log-sample-rate: 0.01
-  recent-log-size: 200
+  recent-log-size: 50000
+  log-dir: logs/simulations
+  log-retention-days: 7
+  hot-reload-enabled: true
+  hot-reload-debounce-ms: 500
   tcp:
     default-host: 127.0.0.1
     max-frame-bytes: 65536

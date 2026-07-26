@@ -256,7 +256,7 @@ public class TcpSimulationServerManager {
             return;
         }
         long durationMs = elapsedMillis(startNanos);
-        metricsService.record(ProtocolType.TCP, status, durationMs, () -> SimulationLogEntry.builder()
+        metricsService.record(blankToDefault(simulationId, "unknown"), ProtocolType.TCP, status, durationMs, () -> SimulationLogEntry.builder()
                 .id(UUID.randomUUID().toString())
                 .simulationId(blankToDefault(simulationId, "unknown"))
                 .simulationName(blankToDefault(simulationName, "unknown"))

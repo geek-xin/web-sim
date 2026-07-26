@@ -86,7 +86,8 @@ public class SimulationMatcher {
     private SimulationMatchResult resultFor(CompiledSimulationRule rule,
                                             SimulationRequest requestForBranchMatching,
                                             Map<String, String> pathVariables) {
-        MatchedBranch matchedBranch = firstMatchingBranch(rule, requestForBranchMatching).orElse(null);
+        MatchedBranch matchedBranch = firstMatchingConditionalBranch(rule, requestForBranchMatching).orElseGet(() ->
+                defaultOrUnconditionalBranch(rule).orElse(null));
         SimulationBranch branch = matchedBranch == null ? null : matchedBranch.branch();
         SimulationResponse response = matchedBranch == null
                 ? rule.getConfig().getDefaultResponse()
@@ -99,15 +100,32 @@ public class SimulationMatcher {
                 .build();
     }
 
-    private Optional<MatchedBranch> firstMatchingBranch(CompiledSimulationRule rule, SimulationRequest request) {
+    private Optional<MatchedBranch> firstMatchingConditionalBranch(CompiledSimulationRule rule, SimulationRequest request) {
         List<SimulationBranch> branches = rule.getRuntimeBranches();
         for (int index = 0; index < branches.size(); index++) {
             SimulationBranch branch = branches.get(index);
-            if (branchMatcher.matches(branch.getConditions(), request)) {
+            if (hasConditions(branch) && branchMatcher.matches(branch.getConditions(), request)) {
                 return Optional.of(new MatchedBranch(index, branch));
             }
         }
         return Optional.empty();
+    }
+
+    private Optional<MatchedBranch> defaultOrUnconditionalBranch(CompiledSimulationRule rule) {
+        List<SimulationBranch> branches = rule.getRuntimeBranches();
+        List<Integer> unconditionalBranchIndexes = new java.util.ArrayList<>();
+        for (int index = 0; index < branches.size(); index++) {
+            SimulationBranch branch = branches.get(index);
+            if (!hasConditions(branch)) {
+                unconditionalBranchIndexes.add(index);
+            }
+        }
+        int selectedIndex = rule.selectDefaultOrUnconditionalBranch(unconditionalBranchIndexes);
+        return selectedIndex < 0 ? Optional.empty() : Optional.of(new MatchedBranch(selectedIndex, branches.get(selectedIndex)));
+    }
+
+    private boolean hasConditions(SimulationBranch branch) {
+        return branch != null && branch.getConditions() != null && !branch.getConditions().isEmpty();
     }
 
     private SimulationRequest requestWithPathVariables(SimulationRequest request, Map<String, String> pathVariables) {

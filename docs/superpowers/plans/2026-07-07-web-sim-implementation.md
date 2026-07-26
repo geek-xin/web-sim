@@ -239,7 +239,7 @@ Write `/Users/xin/Documents/CodexProjects/web-sim/src/main/resources/application
 ```yaml
 server:
   address: 127.0.0.1
-  port: 8091
+  port: 9998
 
 spring:
   application:
@@ -1422,7 +1422,7 @@ mvn test
 mvn spring-boot:run
 ```
 
-- Admin URL: `http://localhost:8091/admin`.
+- Admin URL: `http://localhost:9998/admin`.
 - HTTP simulation example with curl create and curl invoke.
 - TCP simulation example with JSON config and `nc 127.0.0.1 19001`.
 - Random value template reference.

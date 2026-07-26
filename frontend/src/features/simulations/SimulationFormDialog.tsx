@@ -25,6 +25,7 @@ import {
 import type { HttpMatchMode, ProtocolType, SimulationBranch, SimulationConfig, SimulationConfigPayload, TcpFrameMode } from './types';
 
 type FormMode = 'create' | 'edit' | 'copy';
+type ResponseGuideTab = 'edit' | 'template' | 'fields';
 
 interface SimulationFormDialogProps {
   open: boolean;
@@ -38,6 +39,8 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
   const [payload, setPayload] = useState<SimulationConfigPayload>(() => initialPayload(mode, config));
   const [branchesText, setBranchesText] = useState(() => JSON.stringify(initialPayload(mode, config).branches, null, 2));
   const [submitting, setSubmitting] = useState(false);
+  const [defaultGuideTab, setDefaultGuideTab] = useState<ResponseGuideTab>('edit');
+  const [branchGuideTab, setBranchGuideTab] = useState<ResponseGuideTab>('edit');
   const protocolLocked = mode === 'edit' && payload.enabled;
   const parsedBranches = useMemo(() => parseBranchesText(branchesText), [branchesText]);
   const canToggleErrorBranch = parsedBranches != null && hasErrorBranch(parsedBranches);
@@ -48,6 +51,8 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
     const next = initialPayload(mode, config);
     setPayload(next);
     setBranchesText(JSON.stringify(next.branches, null, 2));
+    setDefaultGuideTab('edit');
+    setBranchGuideTab('edit');
   }, [config, mode, open]);
 
   const title = useMemo(() => {
@@ -306,34 +311,45 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
             </section>
           )}
 
-          <div className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-5">
+          <div className="grid items-start grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-5">
             <section className="grid content-start gap-4 rounded-[24px] border-[3px] border-clay-border bg-white p-4 shadow-clay-sm">
-              <h3 className="text-lg font-black text-clay-ink">默认响应</h3>
-              <div className="grid gap-4">
-                <Field label="状态码" htmlFor="default-status">
-                  <Input
-                    id="default-status"
-                    type="number"
-                    value={payload.defaultResponse.status ?? ''}
-                    onChange={(event) => setPayload((current) => ({
-                      ...current,
-                      defaultResponse: { ...current.defaultResponse, status: event.target.value ? Number(event.target.value) : null },
-                    }))}
-                  />
-                </Field>
-                <Field label="响应体" htmlFor="default-body">
-                  <Textarea
-                    id="default-body"
-                    value={payload.defaultResponse.body || ''}
-                    onChange={(event) => setPayload((current) => ({
-                      ...current,
-                      defaultResponse: { ...current.defaultResponse, body: event.target.value },
-                    }))}
-                    onBlur={formatDefaultBody}
-                    rows={12}
-                  />
-                </Field>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-lg font-black text-clay-ink">默认响应</h3>
+                <GuideTabs
+                  ariaLabel="默认响应视图"
+                  value={defaultGuideTab}
+                  onChange={setDefaultGuideTab}
+                />
               </div>
+              {defaultGuideTab === 'template' ? <TemplateReference title="默认响应体模板" /> : null}
+              {defaultGuideTab === 'fields' ? <DefaultBodyFieldReference /> : null}
+              {defaultGuideTab === 'edit' ? (
+                <div className="grid gap-4">
+                  <Field label="状态码" htmlFor="default-status">
+                    <Input
+                      id="default-status"
+                      type="number"
+                      value={payload.defaultResponse.status ?? ''}
+                      onChange={(event) => setPayload((current) => ({
+                        ...current,
+                        defaultResponse: { ...current.defaultResponse, status: event.target.value ? Number(event.target.value) : null },
+                      }))}
+                    />
+                  </Field>
+                  <Field label="响应体" htmlFor="default-body">
+                    <Textarea
+                      id="default-body"
+                      value={payload.defaultResponse.body || ''}
+                      onChange={(event) => setPayload((current) => ({
+                        ...current,
+                        defaultResponse: { ...current.defaultResponse, body: event.target.value },
+                      }))}
+                      onBlur={formatDefaultBody}
+                      rows={12}
+                    />
+                  </Field>
+                </div>
+              ) : null}
             </section>
 
             <section className="grid content-start gap-4 rounded-[24px] border-[3px] border-clay-border bg-white p-4 shadow-clay-sm">
@@ -345,23 +361,34 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
                       可直接编辑分支数组；支持条件、优先级、主响应、probability 出现概率、responseVariants 响应变体，以及 ROUND_ROBIN/RANDOM 交错策略。
                     </p>
                   </div>
-                  <Button
-                    type="button"
-                    variant={errorBranchEnabled ? 'danger' : 'primary'}
-                    size="sm"
-                    disabled={!canToggleErrorBranch}
-                    onClick={toggleErrorBranch}
-                  >
-                    {errorBranchEnabled ? '禁用' : '启用'}
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <GuideTabs
+                      ariaLabel="分支 JSON 视图"
+                      value={branchGuideTab}
+                      onChange={setBranchGuideTab}
+                    />
+                    <Button
+                      type="button"
+                      variant={errorBranchEnabled ? 'danger' : 'primary'}
+                      size="sm"
+                      disabled={!canToggleErrorBranch}
+                      onClick={toggleErrorBranch}
+                    >
+                      {errorBranchEnabled ? '禁用' : '启用'}
+                    </Button>
+                  </div>
                 </div>
-                <Textarea
-                  id="branches-json"
-                  value={branchesText}
-                  onChange={(event) => setBranchesText(event.target.value)}
-                  rows={16}
-                  aria-describedby="branches-json-help"
-                />
+                {branchGuideTab === 'template' ? <TemplateReference title="分支 / 错误响应体模板" /> : null}
+                {branchGuideTab === 'fields' ? <BranchFieldReference /> : null}
+                {branchGuideTab === 'edit' ? (
+                  <Textarea
+                    id="branches-json"
+                    value={branchesText}
+                    onChange={(event) => setBranchesText(event.target.value)}
+                    rows={16}
+                    aria-describedby="branches-json-help"
+                  />
+                ) : null}
               </div>
             </section>
           </div>
@@ -417,6 +444,118 @@ function Field({ label, htmlFor, children }: { label: string; htmlFor: string; c
       <span>{label}</span>
       {children}
     </label>
+  );
+}
+
+function GuideTabs({
+  ariaLabel,
+  value,
+  onChange,
+}: {
+  ariaLabel: string;
+  value: ResponseGuideTab;
+  onChange: (value: ResponseGuideTab) => void;
+}) {
+  return (
+    <SegmentedPicker<ResponseGuideTab>
+      ariaLabel={ariaLabel}
+      value={value}
+      options={[
+        { value: 'edit', label: '编辑' },
+        { value: 'template', label: '模板' },
+        { value: 'fields', label: '字段' },
+      ]}
+      onChange={onChange}
+    />
+  );
+}
+
+function TemplateReference({ title }: { title: string }) {
+  const examples = [
+    { token: '{{path.id}}', detail: '路径模板变量，例如 /users/{id} 中的 id。' },
+    { token: '{{query.seq}}', detail: '查询参数，例如 ?seq=10。' },
+    { token: '{{request.header.X-Request-Id}}', detail: '请求头，区分大小写。' },
+    { token: '{{tcp.body}}', detail: 'TCP 请求报文内容。' },
+    { token: '{{random.uuid}}', detail: '随机 UUID。' },
+    { token: '{{random.int:1,100}}', detail: '1 到 100 的随机整数，包含两端。' },
+    { token: '{{random.float:0,1}}', detail: '0 到 1 的随机小数。' },
+    { token: '{{random.bool}}', detail: '随机 true / false。' },
+    { token: '{{random.timestamp}}', detail: '当前 ISO 时间。' },
+    { token: '{{random.pick:A,B,C}}', detail: '从列表中随机选择一个值。' },
+    { token: '{{random.name}}', detail: '随机姓名。' },
+  ];
+
+  return (
+    <div className="rounded-2xl border-[3px] border-clay-border bg-clay-cream p-3 shadow-[1px_2px_0_rgba(17,17,17,0.45)]">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <strong className="text-sm font-black text-clay-ink">{title}</strong>
+        <span className="text-[0.68rem] font-bold text-clay-muted">响应体和响应头均支持</span>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        {examples.map((example) => (
+          <div key={example.token} className="rounded-xl border-[2px] border-clay-border bg-white px-3 py-2">
+            <code className="block break-all text-[0.7rem] font-black text-clay-ink">{example.token}</code>
+            <span className="mt-1 block text-[0.68rem] font-bold leading-snug text-clay-muted">{example.detail}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DefaultBodyFieldReference() {
+  const fields = [
+    { name: 'status', detail: '响应状态码。HTTP 通常使用 200、404、503；TCP 错误可用 0 或业务约定状态。' },
+    { name: 'headers', detail: '响应头对象，值里也可以使用模板变量，例如 X-Trace-Id。' },
+    { name: 'body', detail: '实际返回的响应体字符串；可以写 JSON、文本或 TCP 报文内容。' },
+    { name: 'delayMs', detail: '响应延迟毫秒数，0 表示立即返回。' },
+    { name: 'ok', detail: '示例业务字段，表示请求是否成功；可以按你的接口协议改名或删除。' },
+    { name: 'id', detail: '示例业务字段，通常填 {{path.id}}，来自路径模板变量。' },
+    { name: 'sequence', detail: '示例业务字段，通常填 {{query.seq}}，来自查询参数。' },
+    { name: 'trace', detail: '示例业务字段，通常填 {{request.header.X-Request-Id}}，用于回传请求链路 ID。' },
+    { name: 'randomName', detail: '示例随机姓名字段，使用 {{random.name}}。' },
+    { name: 'randomInt', detail: '示例随机整数字段，使用 {{random.int:min,max}}。' },
+    { name: 'timestamp', detail: '示例时间字段，使用 {{random.timestamp}} 生成当前 ISO 时间。' },
+  ];
+
+  return <FieldReference title="默认响应字段说明" fields={fields} />;
+}
+
+function BranchFieldReference() {
+  const fields = [
+    { name: 'name', detail: '分支名称，用于管理台展示和日志识别，例如“错误分支”。' },
+    { name: 'priority', detail: '匹配优先级，数字越小越先判断。多个条件分支同时命中时，优先级小的先返回。' },
+    { name: 'conditions', detail: '分支条件数组。为空时表示无条件分支，会参与默认响应之间的交错或概率选择。' },
+    { name: 'conditions.source', detail: '条件来源：QUERY、HEADER、PATH、BODY 或 TCP_BODY。' },
+    { name: 'conditions.key', detail: '要读取的参数名、请求头名、路径变量名或 JSON Path。' },
+    { name: 'conditions.operator', detail: '比较方式：EQ、NOT_EQ、CONTAINS、REGEX、EXISTS、JSON_PATH。' },
+    { name: 'conditions.value', detail: '比较目标值；EXISTS 不需要 value。' },
+    { name: 'response', detail: '分支命中后的主响应对象。' },
+    { name: 'response.status', detail: '分支响应状态码，例如错误分支常用 503。' },
+    { name: 'response.headers', detail: '分支响应头对象，值支持模板变量。' },
+    { name: 'response.body', detail: '分支响应体，常用于模拟错误 JSON 或异常报文。' },
+    { name: 'response.delayMs', detail: '分支响应延迟毫秒数。' },
+    { name: 'probability', detail: '无条件分支出现概率，范围 0 到 1；多个分支概率总和小于 1 时，剩余概率走默认响应。' },
+    { name: 'responseVariants', detail: '响应变体数组。分支命中后会在主响应和变体响应之间选择。' },
+    { name: 'variantStrategy', detail: '响应变体策略：ROUND_ROBIN 轮询，RANDOM 随机。' },
+  ];
+
+  return <FieldReference title="分支 JSON 字段说明" fields={fields} />;
+}
+
+function FieldReference({ title, fields }: { title: string; fields: Array<{ name: string; detail: string }> }) {
+  return (
+    <div className="rounded-2xl border-[3px] border-clay-border bg-clay-cream p-3 shadow-[1px_2px_0_rgba(17,17,17,0.45)]">
+      <strong className="text-sm font-black text-clay-ink">{title}</strong>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        {fields.map((field) => (
+          <div key={field.name} className="rounded-xl border-[2px] border-clay-border bg-white px-3 py-2">
+            <code className="block break-all text-[0.7rem] font-black text-clay-ink">{field.name}</code>
+            <span className="mt-1 block text-[0.68rem] font-bold leading-snug text-clay-muted">{field.detail}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

@@ -124,7 +124,7 @@ export function SimulationLogDialog({ open, onOpenChange, simulationFilter }: Si
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="flex max-h-[90vh] w-[1180px] flex-col overflow-x-auto overflow-y-hidden">
+        <DialogContent className="flex h-[90vh] max-h-[90vh] w-[1180px] flex-col overflow-x-auto overflow-y-hidden">
         <div className="flex min-h-0 min-w-[1120px] flex-1 flex-col gap-4">
           <DialogHeader className="shrink-0">
             <div className="flex items-center gap-2">
@@ -171,8 +171,8 @@ export function SimulationLogDialog({ open, onOpenChange, simulationFilter }: Si
                 {streamError ? <p className="text-sm font-bold text-clay-muted">{streamError}</p> : <p className="text-sm font-bold text-clay-muted">每 2 秒自动刷新。</p>}
               </div>
               {visibleLogs.length ? (
-                <div className="min-h-0 flex-1 overflow-hidden">
-                  <Table className="min-w-[1120px]" wrapperClassName="overflow-x-auto">
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                  <Table className="min-w-[1120px]" wrapperClassName="min-h-0 max-h-[420px] flex-1 overflow-auto">
                     <TableHeader className="[&_th]:sticky [&_th]:top-0 [&_th]:z-10 [&_th]:bg-clay-indigo">
                       <TableRow>
                         <TableHead className="w-16">序号</TableHead>

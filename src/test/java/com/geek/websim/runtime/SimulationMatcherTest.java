@@ -93,13 +93,16 @@ class SimulationMatcherTest {
     void lowerPriorityMatchingBranchIsSelectedFirst() {
         SimulationConfig config = httpConfig("priority", "ANY", "/api/priority", HttpMatchMode.EXACT,
                 response("default"),
-                branch("later", 20, response("later")),
-                branch("earlier", 10, response("earlier")));
+                branch("later", 20, response("later"),
+                        condition(ConditionSource.QUERY, "group", ConditionOperator.EQ, "a")),
+                branch("earlier", 10, response("earlier"),
+                        condition(ConditionSource.QUERY, "group", ConditionOperator.EQ, "a")));
         SimulationMatcher matcher = matcher(config);
 
         Optional<SimulationMatchResult> result = matcher.matchHttp(SimulationRequest.builder()
                 .method("POST")
                 .path("/api/priority")
+                .query(Map.of("group", "a"))
                 .build());
 
         assertThat(result).isPresent();
@@ -108,8 +111,64 @@ class SimulationMatcherTest {
     }
 
     @Test
+    void unconditionalBranchesInterleaveWithDefaultResponseWithoutRequestConditions() {
+        SimulationBranch errorBranch = branch("error", 0, SimulationResponse.builder()
+                .status(503)
+                .body("error")
+                .build());
+        SimulationMatcher matcher = matcher(httpConfig("interleave", "GET", "/api/interleave", HttpMatchMode.EXACT,
+                SimulationResponse.builder()
+                        .status(200)
+                        .body("ok")
+                        .build(),
+                errorBranch));
+
+        SimulationRequest request = SimulationRequest.builder()
+                .method("GET")
+                .path("/api/interleave")
+                .build();
+
+        assertThat(matcher.matchHttp(request).map(result -> result.getResponse().getStatus())).contains(200);
+        assertThat(matcher.matchHttp(request).map(result -> result.getResponse().getStatus())).contains(503);
+        assertThat(matcher.matchHttp(request).map(result -> result.getResponse().getStatus())).contains(200);
+        assertThat(matcher.matchHttp(request).map(result -> result.getResponse().getStatus())).contains(503);
+    }
+
+    @Test
+    void unconditionalBranchProbabilityControlsWhetherBranchCanAppear() {
+        SimulationBranch alwaysError = branch("always error", 0, SimulationResponse.builder()
+                .status(503)
+                .body("error")
+                .build());
+        alwaysError.setProbability(1.0);
+        SimulationMatcher alwaysMatcher = matcher(httpConfig("always", "GET", "/api/probability", HttpMatchMode.EXACT,
+                SimulationResponse.builder().status(200).body("ok").build(),
+                alwaysError));
+        SimulationRequest request = SimulationRequest.builder()
+                .method("GET")
+                .path("/api/probability")
+                .build();
+
+        assertThat(alwaysMatcher.matchHttp(request).map(result -> result.getResponse().getStatus())).contains(503);
+        assertThat(alwaysMatcher.matchHttp(request).map(result -> result.getResponse().getStatus())).contains(503);
+
+        SimulationBranch neverError = branch("never error", 0, SimulationResponse.builder()
+                .status(503)
+                .body("error")
+                .build());
+        neverError.setProbability(0.0);
+        SimulationMatcher neverMatcher = matcher(httpConfig("never", "GET", "/api/probability", HttpMatchMode.EXACT,
+                SimulationResponse.builder().status(200).body("ok").build(),
+                neverError));
+
+        assertThat(neverMatcher.matchHttp(request).map(result -> result.getResponse().getStatus())).contains(200);
+        assertThat(neverMatcher.matchHttp(request).map(result -> result.getResponse().getStatus())).contains(200);
+    }
+
+    @Test
     void matchingBranchCyclesPrimaryAndVariantResponses() {
-        SimulationBranch branch = branch("flaky", 0, response("ok"));
+        SimulationBranch branch = branch("flaky", 0, response("ok"),
+                condition(ConditionSource.QUERY, "branch", ConditionOperator.EQ, "flaky"));
         branch.setResponseVariants(List.of(
                 SimulationResponse.builder().status(500).body("error").build(),
                 SimulationResponse.builder().status(429).body("busy").build()));
@@ -121,6 +180,7 @@ class SimulationMatcherTest {
         SimulationRequest request = SimulationRequest.builder()
                 .method("GET")
                 .path("/api/flaky")
+                .query(Map.of("branch", "flaky"))
                 .build();
 
         assertThat(matcher.matchHttp(request).map(result -> result.getResponse().getBody())).contains("ok");
@@ -134,12 +194,14 @@ class SimulationMatcherTest {
         SimulationConfig config = httpConfig("invalid-branch", "GET", "/api/branch", HttpMatchMode.EXACT,
                 response("default"),
                 branch("invalid", 0, null),
-                branch("valid", 10, response("valid")));
+                branch("valid", 10, response("valid"),
+                        condition(ConditionSource.QUERY, "branch", ConditionOperator.EQ, "valid")));
         SimulationMatcher matcher = matcher(config);
 
         Optional<SimulationMatchResult> result = matcher.matchHttp(SimulationRequest.builder()
                 .method("GET")
                 .path("/api/branch")
+                .query(Map.of("branch", "valid"))
                 .build());
 
         assertThat(result).isPresent();
