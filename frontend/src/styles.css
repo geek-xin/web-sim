@@ -282,10 +282,6 @@ h6,
     font-weight: 900;
   }
 
-  .toolbar-strip {
-    align-items: center;
-  }
-
   .empty-state-icon {
     width: 5.5rem;
     height: 5.5rem;

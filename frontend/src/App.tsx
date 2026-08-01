@@ -9,10 +9,10 @@ import { DeleteConfirmDialog } from '@/features/simulations/DeleteConfirmDialog'
 import { SimulationCard } from '@/features/simulations/SimulationCard';
 import { SimulationDetailDrawer, type RawConfigViewState } from '@/features/simulations/SimulationDetailDrawer';
 import { SimulationFormDialog } from '@/features/simulations/SimulationFormDialog';
-import { SimulationToolbar, type EnabledFilter, type ProtocolFilter } from '@/features/simulations/SimulationToolbar';
+import { SimulationToolbar } from '@/features/simulations/SimulationToolbar';
 import { SimulationLogDialog } from '@/features/logs/SimulationLogDialog';
 import { parseSnapshotEvent, type SimulationLogSnapshot } from '@/features/logs/types';
-import { displayEndpoint } from '@/features/simulations/sim-utils';
+import { availableTags, filterSimulations, type SimulationTagFilter } from '@/features/simulations/sim-utils';
 import { downloadTextFile, extractImportConfigs } from '@/features/simulations/import-export';
 import type { SimulationConfig, SimulationConfigPayload } from '@/features/simulations/types';
 
@@ -79,8 +79,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [protocolFilter, setProtocolFilter] = useState<ProtocolFilter>('ALL');
-  const [enabledFilter, setEnabledFilter] = useState<EnabledFilter>('ALL');
+  const [tagFilter, setTagFilter] = useState<SimulationTagFilter>('ALL');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [formState, setFormState] = useState<FormState>({ open: false, mode: 'create', config: null });
   const [deleteState, setDeleteState] = useState<DeleteState>({ open: false, ids: [] });
@@ -187,22 +186,22 @@ export default function App() {
     });
   }, [simulations]);
 
+  const tagOptions = useMemo(() => availableTags(simulations), [simulations]);
   const filteredSimulations = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return simulations.filter((config) => {
-      if (protocolFilter !== 'ALL' && config.protocol !== protocolFilter) return false;
-      if (enabledFilter === 'ENABLED' && !config.enabled) return false;
-      if (enabledFilter === 'DISABLED' && config.enabled) return false;
-      if (!query) return true;
-
-      const haystack = [config.name, config.protocol, displayEndpoint(config), config.enabled ? '已启用 enabled' : '已停用 disabled']
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(query);
+    return filterSimulations(simulations, {
+      search,
+      protocolFilter: 'ALL',
+      enabledFilter: 'ALL',
+      tagFilter,
     });
-  }, [enabledFilter, protocolFilter, search, simulations]);
-
+  }, [simulations, search, tagFilter]);
   const overviewCards = useMemo(() => buildOverviewCards(simulations), [simulations]);
+
+  useEffect(() => {
+    if (tagFilter !== 'ALL' && !tagOptions.includes(tagFilter)) {
+      setTagFilter('ALL');
+    }
+  }, [tagFilter, tagOptions]);
 
   const handleSubmit = async (payload: SimulationConfigPayload) => {
     const editingId = formState.mode === 'edit' ? formState.config?.id : undefined;
@@ -314,14 +313,13 @@ export default function App() {
           <SimulationToolbar
             headingId="simulation-workspace-heading"
             search={search}
-            protocolFilter={protocolFilter}
-            enabledFilter={enabledFilter}
+            tagFilter={tagFilter}
+            tagOptions={tagOptions}
             selectedCount={selectedCount}
             totalCount={simulations.length}
             visibleCount={filteredSimulations.length}
             onSearchChange={setSearch}
-            onProtocolFilterChange={setProtocolFilter}
-            onEnabledFilterChange={setEnabledFilter}
+            onTagFilterChange={setTagFilter}
             onRefresh={loadSimulations}
             refreshing={loading}
             onImport={handleImportClick}
@@ -348,9 +346,16 @@ export default function App() {
             ) : filteredSimulations.length === 0 ? (
               <StateCard
                 icon={<Sparkles className="h-10 w-10" />}
-                title={simulations.length === 0 ? '暂无模拟配置' : '没有符合筛选条件的配置'}
-                detail={simulations.length === 0 ? '创建一个 HTTP 或 TCP 模拟配置，开始模拟接口流量。' : '调整搜索、协议或启停筛选条件查看更多卡片。'}
-                action={simulations.length === 0 ? <Button variant="primary" onClick={() => setFormState({ open: true, mode: 'create', config: null })}>创建模拟配置</Button> : undefined}
+                title={simulations.length === 0 ? '暂无模拟配置' : '没有符合条件的配置'}
+                detail={simulations.length === 0 ? '创建一个 HTTP 或 TCP 模拟配置，开始模拟接口流量。' : '调整名称搜索或标签筛选可查看更多卡片。'}
+                action={
+                  simulations.length === 0
+                    ? <Button variant="primary" onClick={() => setFormState({ open: true, mode: 'create', config: null })}>创建模拟配置</Button>
+                    : <Button variant="outline" onClick={() => {
+                      setSearch('');
+                      setTagFilter('ALL');
+                    }}>清除筛选</Button>
+                }
               />
             ) : (
               <div className="grid grid-cols-3 gap-4">
@@ -461,7 +466,7 @@ function Hero({
               <span className="hero-title-cn">模拟器</span>
             </h1>
             <p className="hero-copy max-w-3xl text-xl font-extrabold text-clay-muted">
-              创建、筛选、复制、启停和删除 HTTP/TCP 模拟规则，配置以本地 JSON 文件保存。
+              创建、按标签筛选、复制、启停和删除 HTTP/TCP 模拟规则，配置以本地 JSON 文件保存。
             </p>
           </div>
         </div>

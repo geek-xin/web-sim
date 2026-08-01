@@ -155,6 +155,19 @@ class SimulationConfigServiceImplTest {
     }
 
     @Test
+    void createNormalizesAndPersistsTags() {
+        SimulationConfigServiceImpl service = new SimulationConfigServiceImpl(new ObjectMapper(), tempDir);
+        service.initDefaultConfigs();
+        SimulationConfig config = httpConfig("tagged config", "/tagged");
+        config.setTags(List.of("  订单  ", "", "回归", "订单", "  "));
+
+        SimulationConfig saved = service.create(config);
+
+        assertThat(saved.getTags()).containsExactly("订单", "回归");
+        assertThat(service.getById(saved.getId()).getTags()).containsExactly("订单", "回归");
+    }
+
+    @Test
     void createRejectsInvalidDefaultResponseStatus() {
         SimulationConfigServiceImpl service = new SimulationConfigServiceImpl(new ObjectMapper(), tempDir);
         service.initDefaultConfigs();

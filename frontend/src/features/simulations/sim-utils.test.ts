@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { SimulationConfig, SimulationConfigPayload } from './types';
 import {
+  availableTags,
   defaultPayload,
   displayEndpoint,
+  filterSimulations,
   hasEnabledErrorBranch,
+  hasErrorBranch,
+  normalizeTags,
+  shouldResetProtocolPayload,
   setErrorBranchesEnabled,
+  tagFilterOptions,
   validatePayload,
 } from './sim-utils';
 
@@ -227,6 +233,138 @@ describe('simulation utilities', () => {
     const enabled = setErrorBranchesEnabled(disabled, true);
     expect(enabled[0]?.probability).toBe(0.5);
     expect(hasEnabledErrorBranch(enabled)).toBe(true);
+  });
+
+  it('toggles error response variants without deleting their definitions', () => {
+    const branches = [
+      {
+        name: '成功分支',
+        priority: 0,
+        conditions: [],
+        response: { status: 200, headers: {}, body: 'ok' },
+        responseVariants: [
+          { status: 500, headers: {}, body: 'error' },
+        ],
+        variantStrategy: 'ROUND_ROBIN' as const,
+      },
+    ];
+
+    expect(hasErrorBranch(branches)).toBe(true);
+    expect(hasEnabledErrorBranch(branches)).toBe(true);
+
+    const disabled = setErrorBranchesEnabled(branches, false);
+    expect(disabled[0]?.responseVariantsEnabled).toBe(false);
+    expect(disabled[0]?.responseVariants).toHaveLength(1);
+    expect(hasEnabledErrorBranch(disabled)).toBe(false);
+
+    const enabled = setErrorBranchesEnabled(disabled, true);
+    expect(enabled[0]?.responseVariantsEnabled).toBe(true);
+    expect(enabled[0]?.responseVariants).toHaveLength(1);
+    expect(hasEnabledErrorBranch(enabled)).toBe(true);
+  });
+
+  it('does not reset branches when selecting the already active protocol', () => {
+    const payload = {
+      ...defaultPayload('HTTP'),
+      branches: [
+        {
+          ...defaultPayload('HTTP').branches[0],
+          responseVariantsEnabled: false,
+        },
+      ],
+    } satisfies SimulationConfigPayload;
+
+    expect(shouldResetProtocolPayload(payload.protocol, 'HTTP')).toBe(false);
+    expect(payload.branches[0]?.responseVariantsEnabled).toBe(false);
+  });
+
+  it('normalizes tags by trimming blanks and removing duplicates', () => {
+    expect(normalizeTags(['  订单  ', '', '回归', '订单', '  ', '联调'])).toEqual(['订单', '回归', '联调']);
+  });
+
+  it('filters simulations by exact tag while search matches names', () => {
+    const orderConfig: SimulationConfig = {
+      id: 'order',
+      name: '订单查询',
+      protocol: 'HTTP',
+      enabled: true,
+      tags: ['订单', '回归'],
+      http: { method: 'GET', path: '/orders/{id}', matchMode: 'TEMPLATE' },
+      branches: [],
+      defaultResponse: { status: 200, headers: {}, body: 'ok' },
+    };
+    const paymentConfig: SimulationConfig = {
+      id: 'payment',
+      name: '支付回调',
+      protocol: 'HTTP',
+      enabled: true,
+      tags: ['支付'],
+      http: { method: 'POST', path: '/payments/callback', matchMode: 'EXACT' },
+      branches: [],
+      defaultResponse: { status: 200, headers: {}, body: 'ok' },
+    };
+
+    expect(availableTags([paymentConfig, orderConfig])).toEqual(['订单', '回归', '支付']);
+    expect(filterSimulations([orderConfig, paymentConfig], {
+      search: '',
+      protocolFilter: 'ALL',
+      enabledFilter: 'ALL',
+      tagFilter: '回归',
+    })).toEqual([orderConfig]);
+    expect(filterSimulations([orderConfig, paymentConfig], {
+      search: '回调',
+      protocolFilter: 'ALL',
+      enabledFilter: 'ALL',
+      tagFilter: 'ALL',
+    })).toEqual([paymentConfig]);
+  });
+
+  it('filters simulations by fuzzy name search only', () => {
+    const nameMatchConfig: SimulationConfig = {
+      id: 'name-match',
+      name: '订单查询主流程',
+      protocol: 'HTTP',
+      enabled: true,
+      tags: ['回归'],
+      http: { method: 'GET', path: '/users/{id}', matchMode: 'TEMPLATE' },
+      branches: [],
+      defaultResponse: { status: 200, headers: {}, body: 'ok' },
+    };
+    const tagOnlyMatchConfig: SimulationConfig = {
+      id: 'tag-only-match',
+      name: '用户详情',
+      protocol: 'HTTP',
+      enabled: true,
+      tags: ['订单'],
+      http: { method: 'GET', path: '/profiles/{id}', matchMode: 'TEMPLATE' },
+      branches: [],
+      defaultResponse: { status: 200, headers: {}, body: 'ok' },
+    };
+    const pathOnlyMatchConfig: SimulationConfig = {
+      id: 'path-only-match',
+      name: '账户详情',
+      protocol: 'HTTP',
+      enabled: true,
+      tags: ['用户'],
+      http: { method: 'GET', path: '/orders/{id}', matchMode: 'TEMPLATE' },
+      branches: [],
+      defaultResponse: { status: 200, headers: {}, body: 'ok' },
+    };
+
+    expect(filterSimulations([nameMatchConfig, tagOnlyMatchConfig, pathOnlyMatchConfig], {
+      search: '订单',
+      protocolFilter: 'ALL',
+      enabledFilter: 'ALL',
+      tagFilter: 'ALL',
+    })).toEqual([nameMatchConfig]);
+  });
+
+  it('builds tag filter options with an all option first', () => {
+    expect(tagFilterOptions(['外接门', 'dasdas'])).toEqual([
+      { value: 'ALL', label: '全部' },
+      { value: '外接门', label: '外接门' },
+      { value: 'dasdas', label: 'dasdas' },
+    ]);
   });
 
 });

@@ -3,7 +3,6 @@ import { X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -19,7 +18,9 @@ import {
   defaultPayload,
   hasEnabledErrorBranch,
   hasErrorBranch,
+  normalizeTags,
   setErrorBranchesEnabled,
+  shouldResetProtocolPayload,
   validatePayload,
 } from './sim-utils';
 import type { HttpMatchMode, ProtocolType, SimulationBranch, SimulationConfig, SimulationConfigPayload, TcpFrameMode } from './types';
@@ -37,6 +38,7 @@ interface SimulationFormDialogProps {
 
 export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmit }: SimulationFormDialogProps) {
   const [payload, setPayload] = useState<SimulationConfigPayload>(() => initialPayload(mode, config));
+  const [tagsText, setTagsText] = useState(() => tagsToText(initialPayload(mode, config).tags));
   const [branchesText, setBranchesText] = useState(() => JSON.stringify(initialPayload(mode, config).branches, null, 2));
   const [submitting, setSubmitting] = useState(false);
   const [defaultGuideTab, setDefaultGuideTab] = useState<ResponseGuideTab>('edit');
@@ -50,6 +52,7 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
     if (!open) return;
     const next = initialPayload(mode, config);
     setPayload(next);
+    setTagsText(tagsToText(next.tags));
     setBranchesText(JSON.stringify(next.branches, null, 2));
     setDefaultGuideTab('edit');
     setBranchGuideTab('edit');
@@ -62,11 +65,15 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
   }, [mode]);
 
   const handleProtocolChange = (protocol: ProtocolType) => {
+    if (!shouldResetProtocolPayload(payload.protocol, protocol)) {
+      return;
+    }
     const next = withFormattedDefaultBody(defaultPayload(protocol));
     setPayload((current) => ({
       ...next,
       id: current.id,
       name: current.name || next.name,
+      tags: normalizeTags(splitTagsText(tagsText)),
       enabled: current.enabled,
     }));
     setBranchesText(JSON.stringify(next.branches, null, 2));
@@ -109,6 +116,7 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
     const normalized: SimulationConfigPayload = {
       ...payload,
       name: payload.name.trim(),
+      tags: normalizeTags(splitTagsText(tagsText)),
       branches,
       http: payload.protocol === 'HTTP' ? payload.http : null,
       tcp: payload.protocol === 'TCP' ? payload.tcp : null,
@@ -174,7 +182,7 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
 
         <form id="simulation-config-form" className="grid max-h-[calc(90vh-158px)] gap-5 overflow-y-auto p-6" onSubmit={handleSubmit}>
           <section className="grid gap-4 rounded-[24px] border-[3px] border-clay-border bg-clay-cream p-4 shadow-clay-sm">
-            <div className="grid grid-cols-[minmax(0,1fr)_180px_140px] items-stretch gap-4">
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(260px,0.8fr)_180px] items-stretch gap-4">
               <Field label="名称" htmlFor="simulation-name">
                 <Input
                   id="simulation-name"
@@ -182,6 +190,15 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
                   onChange={(event) => setPayload((current) => ({ ...current, name: event.target.value }))}
                   placeholder="模拟配置名称"
                   required
+                />
+              </Field>
+
+              <Field label="标签" htmlFor="simulation-tags">
+                <Input
+                  id="simulation-tags"
+                  value={tagsText}
+                  onChange={(event) => setTagsText(event.target.value)}
+                  placeholder="订单, 回归, 联调"
                 />
               </Field>
 
@@ -197,18 +214,6 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
                   disabled={protocolLocked}
                   onChange={handleProtocolChange}
                 />
-              </div>
-
-              <div className="grid gap-2 text-sm font-black text-clay-ink">
-                <span className="flex min-h-5 items-center">状态</span>
-                <label className="flex h-12 items-center gap-3 rounded-2xl border-[3px] border-clay-border bg-white px-4 text-sm font-black shadow-[1px_2px_0_rgba(17,17,17,0.55)]">
-                  <Checkbox
-                    checked={payload.enabled}
-                    onCheckedChange={(checked) => setPayload((current) => ({ ...current, enabled: checked === true }))}
-                    aria-label="是否启用模拟配置"
-                  />
-                  已启用
-                </label>
               </div>
             </div>
           </section>
@@ -354,13 +359,8 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
 
             <section className="grid content-start gap-4 rounded-[24px] border-[3px] border-clay-border bg-white p-4 shadow-clay-sm">
               <div className="grid gap-2">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="grid gap-2">
-                    <label className="text-sm font-black text-clay-ink" htmlFor="branches-json">分支 JSON</label>
-                    <p id="branches-json-help" className="text-xs font-bold text-clay-muted">
-                      可直接编辑分支数组；支持条件、优先级、主响应、probability 出现概率、responseVariants 响应变体，以及 ROUND_ROBIN/RANDOM 交错策略。
-                    </p>
-                  </div>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <label className="text-sm font-black text-clay-ink" htmlFor="branches-json">分支 JSON</label>
                   <div className="flex flex-wrap items-center gap-2">
                     <GuideTabs
                       ariaLabel="分支 JSON 视图"
@@ -378,6 +378,9 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
                     </Button>
                   </div>
                 </div>
+                <p id="branches-json-help" className="text-xs font-bold text-clay-muted">
+                  可直接编辑分支数组；支持条件、优先级、主响应、probability 出现概率、responseVariants 响应变体，以及 ROUND_ROBIN/RANDOM 交错策略。
+                </p>
                 {branchGuideTab === 'template' ? <TemplateReference title="分支 / 错误响应体模板" /> : null}
                 {branchGuideTab === 'fields' ? <BranchFieldReference /> : null}
                 {branchGuideTab === 'edit' ? (
@@ -412,11 +415,20 @@ function initialPayload(mode: FormMode, config?: SimulationConfig | null): Simul
 function withFormattedDefaultBody(payload: SimulationConfigPayload): SimulationConfigPayload {
   return {
     ...payload,
+    tags: normalizeTags(payload.tags),
     defaultResponse: {
       ...payload.defaultResponse,
       body: formatJsonText(payload.defaultResponse.body),
     },
   };
+}
+
+function tagsToText(tags?: string[]): string {
+  return normalizeTags(tags).join(', ');
+}
+
+function splitTagsText(value: string): string[] {
+  return value.split(/[,，\n]/);
 }
 
 function formatJsonText(value?: string | null): string {
@@ -537,6 +549,7 @@ function BranchFieldReference() {
     { name: 'response.delayMs', detail: '分支响应延迟毫秒数。' },
     { name: 'probability', detail: '无条件分支出现概率，范围 0 到 1；多个分支概率总和小于 1 时，剩余概率走默认响应。' },
     { name: 'responseVariants', detail: '响应变体数组。分支命中后会在主响应和变体响应之间选择。' },
+    { name: 'responseVariantsEnabled', detail: '是否启用响应变体；关闭后保留变体定义但只返回主响应。' },
     { name: 'variantStrategy', detail: '响应变体策略：ROUND_ROBIN 轮询，RANDOM 随机。' },
   ];
 

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { formatDuration } from '@/lib/utils';
 import type { SimulationMetricsSummary } from '@/features/logs/types';
-import { countBranches, displayEndpoint, protocolBadgeVariant } from './sim-utils';
+import { countBranches, displayEndpoint, normalizeTags, protocolBadgeVariant } from './sim-utils';
 import type { SimulationConfig } from './types';
 
 interface SimulationCardProps {
@@ -38,6 +38,7 @@ export function SimulationCard({
   const hits = metricsSummary?.hits ?? 0;
   const errors = metricsSummary?.errors ?? 0;
   const avg = formatDuration(metricsSummary?.averageDurationMs ?? 0);
+  const tags = normalizeTags(config.tags);
 
   return (
     <Card className="chunky-pressable overflow-hidden">
@@ -53,6 +54,13 @@ export function SimulationCard({
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <Badge variant={protocolBadgeVariant(config.protocol)}>{config.protocol}</Badge>
                 <Badge variant={config.enabled ? 'mint' : 'muted'}>{config.enabled ? '已启用' : '已停用'}</Badge>
+                {tags.length > 0 ? (
+                  <span className="contents" aria-label={`${config.name} 标签`}>
+                    {tags.map((tag) => (
+                    <Badge key={tag} variant="yellow">{tag}</Badge>
+                    ))}
+                  </span>
+                ) : null}
               </div>
               <CardTitle className="truncate text-2xl" title={config.name}>{config.name}</CardTitle>
             </div>

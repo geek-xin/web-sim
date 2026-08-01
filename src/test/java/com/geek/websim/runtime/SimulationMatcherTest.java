@@ -190,6 +190,28 @@ class SimulationMatcherTest {
     }
 
     @Test
+    void disabledResponseVariantsLeaveOnlyPrimaryResponseInCycle() {
+        SimulationBranch branch = branch("flaky", 0, response("ok"),
+                condition(ConditionSource.QUERY, "branch", ConditionOperator.EQ, "flaky"));
+        branch.setResponseVariants(List.of(
+                SimulationResponse.builder().status(500).body("error").build()));
+        branch.setResponseVariantsEnabled(false);
+        branch.setVariantStrategy(ResponseVariantStrategy.ROUND_ROBIN);
+        SimulationMatcher matcher = matcher(httpConfig("flaky-disabled", "GET", "/api/flaky", HttpMatchMode.EXACT,
+                response("default"),
+                branch));
+
+        SimulationRequest request = SimulationRequest.builder()
+                .method("GET")
+                .path("/api/flaky")
+                .query(Map.of("branch", "flaky"))
+                .build();
+
+        assertThat(matcher.matchHttp(request).map(result -> result.getResponse().getBody())).contains("ok");
+        assertThat(matcher.matchHttp(request).map(result -> result.getResponse().getBody())).contains("ok");
+    }
+
+    @Test
     void branchWithNullResponseIsSkipped() {
         SimulationConfig config = httpConfig("invalid-branch", "GET", "/api/branch", HttpMatchMode.EXACT,
                 response("default"),

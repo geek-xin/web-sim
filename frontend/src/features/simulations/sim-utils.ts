@@ -1,5 +1,10 @@
 import type { ProtocolType, SimulationBranch, SimulationConfig, SimulationConfigPayload } from './types';
 
+export type SimulationProtocolFilter = 'ALL' | ProtocolType;
+export type SimulationEnabledFilter = 'ALL' | 'ENABLED' | 'DISABLED';
+export type SimulationTagFilter = 'ALL' | string;
+export type FilterOption<TValue extends string> = { value: TValue; label: string };
+
 export function displayEndpoint(config: SimulationConfig): string {
   if (config.protocol === 'HTTP') {
     const method = (config.http?.method || 'GET').toUpperCase();
@@ -21,31 +26,116 @@ export function protocolBadgeVariant(protocol: ProtocolType): 'indigo' | 'mint' 
   return protocol === 'HTTP' ? 'indigo' : 'mint';
 }
 
+export function shouldResetProtocolPayload(currentProtocol: ProtocolType, selectedProtocol: ProtocolType): boolean {
+  return currentProtocol !== selectedProtocol;
+}
+
+export function normalizeTags(tags?: unknown): string[] {
+  if (!Array.isArray(tags)) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  tags.forEach((tag) => {
+    if (typeof tag !== 'string') {
+      return;
+    }
+    const value = tag.trim();
+    if (!value || seen.has(value)) {
+      return;
+    }
+    seen.add(value);
+    normalized.push(value);
+  });
+  return normalized;
+}
+
+export function availableTags(simulations: SimulationConfig[]): string[] {
+  const tags = new Set<string>();
+  simulations.forEach((config) => {
+    normalizeTags(config.tags).forEach((tag) => tags.add(tag));
+  });
+  return [...tags].sort((left, right) => left.localeCompare(right, 'zh-Hans-CN'));
+}
+
+export function tagFilterOptions(tags: string[]): Array<FilterOption<SimulationTagFilter>> {
+  return [
+    { value: 'ALL', label: '全部' },
+    ...tags.map((tag) => ({ value: tag, label: tag })),
+  ];
+}
+
+export function filterSimulations(
+  simulations: SimulationConfig[],
+  filters: {
+    search: string;
+    protocolFilter: SimulationProtocolFilter;
+    enabledFilter: SimulationEnabledFilter;
+    tagFilter: SimulationTagFilter;
+  },
+): SimulationConfig[] {
+  const query = filters.search.trim().toLowerCase();
+  return simulations.filter((config) => {
+    const tags = normalizeTags(config.tags);
+    if (filters.protocolFilter !== 'ALL' && config.protocol !== filters.protocolFilter) return false;
+    if (filters.enabledFilter === 'ENABLED' && !config.enabled) return false;
+    if (filters.enabledFilter === 'DISABLED' && config.enabled) return false;
+    if (filters.tagFilter !== 'ALL' && !tags.includes(filters.tagFilter)) return false;
+    if (!query) return true;
+
+    return config.name.toLowerCase().includes(query);
+  });
+}
+
 export function hasErrorBranch(branches: SimulationBranch[]): boolean {
-  return branches.some(isErrorBranch);
+  return branches.some((branch) => hasErrorPrimaryResponse(branch) || hasErrorResponseVariant(branch));
 }
 
 export function hasEnabledErrorBranch(branches: SimulationBranch[]): boolean {
-  return branches.some((branch) => isErrorBranch(branch) && branch.probability !== 0);
+  return branches.some((branch) => {
+    if (hasErrorPrimaryResponse(branch) && branch.probability !== 0) {
+      return true;
+    }
+    return hasErrorResponseVariant(branch) && branch.responseVariantsEnabled !== false;
+  });
 }
 
 export function setErrorBranchesEnabled(branches: SimulationBranch[], enabled: boolean): SimulationBranch[] {
   return branches.map((branch) => {
-    if (!isErrorBranch(branch)) {
+    const hasPrimaryError = hasErrorPrimaryResponse(branch);
+    const hasVariantError = hasErrorResponseVariant(branch);
+    if (!hasPrimaryError && !hasVariantError) {
       return branch;
     }
-    return {
-      ...branch,
-      probability: enabled ? enabledErrorProbability(branch.probability) : 0,
-    };
+    const next: SimulationBranch = { ...branch };
+    if (hasPrimaryError) {
+      next.probability = enabled ? enabledErrorProbability(branch.probability) : 0;
+    }
+    if (hasVariantError) {
+      next.responseVariantsEnabled = enabled;
+    }
+    return next;
   });
 }
 
-function isErrorBranch(branch: SimulationBranch): boolean {
+function hasErrorPrimaryResponse(branch: SimulationBranch): boolean {
   const branchName = branch.name.toLowerCase();
   return branchName.includes('错误')
     || branchName.includes('error')
     || Number(branch.response?.status ?? 0) >= 400;
+}
+
+function hasErrorResponseVariant(branch: SimulationBranch): boolean {
+  return normalizeResponses(branch.responseVariants).some(isErrorResponse);
+}
+
+function normalizeResponses(responses?: unknown): Array<{ status?: number | null }> {
+  return Array.isArray(responses) ? responses.filter(isObject) : [];
+}
+
+function isErrorResponse(response: { status?: number | null }): boolean {
+  return Number(response.status ?? 0) >= 400;
 }
 
 function enabledErrorProbability(probability?: number | null): number {
@@ -56,6 +146,7 @@ export function defaultPayload(protocol: ProtocolType): SimulationConfigPayload 
   if (protocol === 'TCP') {
     return {
       name: 'TCP 行报文模拟',
+      tags: [],
       protocol: 'TCP',
       enabled: true,
       http: null,
@@ -95,6 +186,7 @@ export function defaultPayload(protocol: ProtocolType): SimulationConfigPayload 
               delayMs: 0,
             },
           ],
+          responseVariantsEnabled: true,
           variantStrategy: 'ROUND_ROBIN',
         },
       ],
@@ -109,6 +201,7 @@ export function defaultPayload(protocol: ProtocolType): SimulationConfigPayload 
 
   return {
     name: 'HTTP 用户模拟',
+    tags: [],
     protocol: 'HTTP',
     enabled: true,
     http: {
@@ -148,6 +241,7 @@ export function defaultPayload(protocol: ProtocolType): SimulationConfigPayload 
             delayMs: 0,
           },
         ],
+        responseVariantsEnabled: true,
         variantStrategy: 'ROUND_ROBIN',
       },
     ],
@@ -308,6 +402,7 @@ export function configToPayload(config: SimulationConfig): SimulationConfigPaylo
   return {
     id: config.id,
     name: config.name,
+    tags: normalizeTags(config.tags),
     protocol: config.protocol,
     enabled: config.enabled,
     http: config.protocol === 'HTTP' ? config.http || defaultPayload('HTTP').http : null,

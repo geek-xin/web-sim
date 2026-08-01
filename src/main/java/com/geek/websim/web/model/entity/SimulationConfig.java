@@ -19,6 +19,8 @@ public class SimulationConfig {
     private String id;
     @NotBlank(message = "模拟名称不能为空")
     private String name;
+    @Builder.Default
+    private List<String> tags = new ArrayList<>();
     @NotNull(message = "协议不能为空")
     private ProtocolType protocol;
     private boolean enabled;

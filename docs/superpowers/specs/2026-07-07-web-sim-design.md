@@ -54,6 +54,7 @@ flowchart LR
 {
   "id": "sim-20260707120000-abc123",
   "name": "用户查询接口",
+  "tags": ["联调", "用户域"],
   "protocol": "HTTP",
   "enabled": true,
   "http": {
@@ -75,6 +76,7 @@ flowchart LR
     {
       "name": "正常返回",
       "priority": 10,
+      "responseVariantsEnabled": true,
       "conditions": [
         { "source": "query", "key": "status", "operator": "eq", "value": "ok" }
       ],
@@ -107,6 +109,7 @@ flowchart LR
 ### 5.1 协议字段
 
 - `protocol`：`HTTP` 或 `TCP`。
+- `tags`：可选自定义标签数组，用于管理后台卡片展示和标签筛选。
 - HTTP：
   - `method`：GET/POST/PUT/PATCH/DELETE/ANY。
   - `path`：匹配路径。
@@ -284,9 +287,8 @@ frontend/src
   - TCP 模拟数。
   - 启用数。
 - 工具栏：
-  - 搜索。
-  - 协议过滤。
-  - 启用/停用过滤。
+  - 按名称模糊搜索。
+  - 标签下拉筛选。
   - 新增模拟。
   - 批量删除。
 - 卡片列表：一个模拟请求一个卡片。
@@ -297,6 +299,7 @@ frontend/src
 - 名称。
 - 协议：HTTP/TCP。
 - 启用状态。
+- 自定义标签。
 - HTTP：method + path。
 - TCP：host + port + frameMode。
 - 分支数。

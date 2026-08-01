@@ -21,6 +21,8 @@ public class SimulationBranch {
     private SimulationResponse response;
     @Builder.Default
     private List<SimulationResponse> responseVariants = new ArrayList<>();
+    @Builder.Default
+    private Boolean responseVariantsEnabled = true;
     private ResponseVariantStrategy variantStrategy;
     private Double probability;
 }

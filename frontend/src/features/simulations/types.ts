@@ -43,6 +43,7 @@ export interface SimulationBranch {
   conditions: SimulationCondition[];
   response: SimulationResponse;
   responseVariants?: SimulationResponse[] | null;
+  responseVariantsEnabled?: boolean | null;
   variantStrategy?: ResponseVariantStrategy | null;
   probability?: number | null;
 }
@@ -50,6 +51,7 @@ export interface SimulationBranch {
 export interface SimulationConfig {
   id: string;
   name: string;
+  tags?: string[];
   protocol: ProtocolType;
   enabled: boolean;
   http?: HttpRule | null;
@@ -62,6 +64,7 @@ export interface SimulationConfig {
 export interface SimulationConfigPayload {
   id?: string;
   name: string;
+  tags?: string[];
   protocol: ProtocolType;
   enabled: boolean;
   http?: HttpRule | null;

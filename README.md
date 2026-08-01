@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://spring.io/projects/spring-boot"><img alt="Spring Boot" src="https://img.shields.io/badge/Spring%20Boot-3.5.2-6DB33F?style=flat-square&logo=springboot&logoColor=white"></a>
-  <img alt="Release" src="https://img.shields.io/badge/Release-0.1.1-111827?style=flat-square">
+  <img alt="Release" src="https://img.shields.io/badge/Release-0.1.2-111827?style=flat-square">
   <img alt="Java 21" src="https://img.shields.io/badge/Java-21-007396?style=flat-square&logo=openjdk&logoColor=white">
   <img alt="Maven" src="https://img.shields.io/badge/Maven-build-C71A36?style=flat-square&logo=apachemaven&logoColor=white">
   <img alt="React" src="https://img.shields.io/badge/UI-React%2019%20%2B%20Vite%207-149ECA?style=flat-square&logo=react&logoColor=white">
@@ -23,7 +23,7 @@
 
 `web-sim` 是一个面向本地开发、联调、测试环境和压测前置验证的轻量 HTTP/TCP 接口模拟器。它参考 `web-router` 的轻量架构和卡片式前端体验，把每个模拟请求保存为本地 JSON 配置，并通过 Spring Boot WebFlux、Reactor Netty 与 React 管理后台实现“配置即改即生效”。
 
-当前版本：`0.1.1`。
+当前版本：`0.1.2`。
 
 ## 功能总览
 
@@ -31,10 +31,11 @@
 | --- | --- |
 | 管理后台 | `GET /admin` 打开中文 React 管理后台；`GET /` 自动跳转到 `/admin`。 |
 | 卡片式模拟 | 每个 HTTP/TCP 模拟规则以卡片呈现，支持创建、编辑、复制、启停、删除、详情查看和批量删除。 |
+| 标签与搜索 | 每个卡片可配置自定义标签；管理台支持按标签下拉筛选，并可按名称模糊搜索配置。 |
 | HTTP 模拟 | 按 `method + path` 匹配，支持 `EXACT`、`PREFIX`、`TEMPLATE` 路径模式与路径变量。 |
 | TCP 模拟 | 基于 Reactor Netty 启动 TCP 监听；当前真实支持 line-based 报文，保留 `LENGTH_HEADER`、`HEX` 配置枚举。 |
 | 分支报文 | 支持按 query/header/path/body/tcp body 条件匹配不同分支，配置优先级、延迟、响应头、响应体和错误码。 |
-| 交错响应 | 单个分支可配置 `responseVariants`，并通过 `ROUND_ROBIN` 或 `RANDOM` 在正常报文、异常报文和错误码之间交错返回。 |
+| 交错响应 | 单个分支可配置 `responseVariants`，并通过 `ROUND_ROBIN` 或 `RANDOM` 在正常报文、异常报文和错误码之间交错返回；也可在分支上临时关闭变体。 |
 | 随机值模板 | 响应 body/header 支持 `{{random.uuid}}`、`{{random.int:min,max}}`、`{{random.pick:a,b,c}}`、请求参数和路径变量。 |
 | 错误码模拟 | HTTP 状态码支持 `100..999`，可模拟 `400/401/403/404/429/500/502/503/504` 以及自定义业务状态。 |
 | 运行日志与指标 | 内存采样最近请求，管理台可查看 HTTP/TCP/error 计数、平均耗时和 SSE 日志快照。 |
@@ -133,13 +134,13 @@ Vite 默认访问 `http://127.0.0.1:5174`，并把 `/admin/api` 代理到后端 
 scripts/build-dist.sh --with-tests
 
 # Linux/macOS
-tar -xzf target/web-sim-0.1.1.tar.gz
-cd web-sim-0.1.1
+tar -xzf target/web-sim-0.1.2.tar.gz
+cd web-sim-0.1.2
 ./run.sh
 ./stop.sh
 
 # Windows
-# 解压 target/web-sim-0.1.1.zip 后，在 web-sim-0.1.1 目录执行：
+# 解压 target/web-sim-0.1.2.zip 后，在 web-sim-0.1.2 目录执行：
 run.bat
 stop.bat
 ```
@@ -155,6 +156,7 @@ curl -X POST http://localhost:9998/admin/api/simulations \
     "name": "用户详情模拟",
     "protocol": "HTTP",
     "enabled": true,
+    "tags": ["联调", "用户域"],
     "http": {"method": "GET", "path": "/api/users/{id}", "matchMode": "TEMPLATE"},
     "requestTemplate": {"headers": {}, "query": {}, "body": null},
     "branches": [
@@ -193,6 +195,7 @@ curl 'http://localhost:9998/api/users/42?error=true'
     {"source": "QUERY", "key": "sku", "operator": "EXISTS", "value": ""}
   ],
   "variantStrategy": "ROUND_ROBIN",
+  "responseVariantsEnabled": true,
   "responseVariants": [
     {
       "status": 200,

@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -214,6 +215,7 @@ public class SimulationConfigServiceImpl implements SimulationConfigService {
         if (config.getProtocol() == null) {
             throw new BusinessException(ErrorCodeEnum.BAD_REQUEST, "协议不能为空");
         }
+        config.setTags(normalizeTags(config.getTags()));
         if (config.getDefaultResponse() == null) {
             throw new BusinessException(ErrorCodeEnum.BAD_REQUEST, "默认响应不能为空");
         }
@@ -234,6 +236,19 @@ public class SimulationConfigServiceImpl implements SimulationConfigService {
             normalizeTcp(config);
         }
         return config;
+    }
+
+    private List<String> normalizeTags(List<String> tags) {
+        if (tags == null || tags.isEmpty()) {
+            return new ArrayList<>();
+        }
+        Set<String> normalized = new LinkedHashSet<>();
+        for (String tag : tags) {
+            if (!isBlank(tag)) {
+                normalized.add(tag.trim());
+            }
+        }
+        return new ArrayList<>(normalized);
     }
 
     private void normalizeHttp(SimulationConfig config) {
@@ -299,6 +314,9 @@ public class SimulationConfigServiceImpl implements SimulationConfigService {
         normalizeResponse(branch.getResponse());
         if (branch.getResponseVariants() == null) {
             branch.setResponseVariants(new ArrayList<>());
+        }
+        if (branch.getResponseVariantsEnabled() == null) {
+            branch.setResponseVariantsEnabled(true);
         }
         for (SimulationResponse responseVariant : branch.getResponseVariants()) {
             if (responseVariant == null) {

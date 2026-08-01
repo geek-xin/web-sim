@@ -169,7 +169,7 @@ public class CompiledSimulationRule {
         }
         List<SimulationResponse> responses = new java.util.ArrayList<>();
         responses.add(branch.getResponse());
-        if (branch.getResponseVariants() != null) {
+        if (branch.getResponseVariants() != null && branch.getResponseVariantsEnabled() != Boolean.FALSE) {
             branch.getResponseVariants().stream()
                     .filter(Objects::nonNull)
                     .forEach(responses::add);
@@ -184,6 +184,7 @@ public class CompiledSimulationRule {
         return SimulationConfig.builder()
                 .id(source.getId())
                 .name(source.getName())
+                .tags(source.getTags() == null ? List.of() : List.copyOf(source.getTags()))
                 .protocol(source.getProtocol())
                 .enabled(source.isEnabled())
                 .http(copyHttp(source.getHttp()))
@@ -244,6 +245,7 @@ public class CompiledSimulationRule {
                 .conditions(copyConditions(source.getConditions()))
                 .response(copyResponse(source.getResponse()))
                 .responseVariants(copyResponses(source.getResponseVariants()))
+                .responseVariantsEnabled(source.getResponseVariantsEnabled())
                 .variantStrategy(source.getVariantStrategy())
                 .probability(source.getProbability())
                 .build();

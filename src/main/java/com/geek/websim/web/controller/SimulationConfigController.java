@@ -188,6 +188,7 @@ public class SimulationConfigController {
         return SimulationConfig.builder()
                 .id(source.getId())
                 .name(source.getName())
+                .tags(source.getTags())
                 .protocol(source.getProtocol())
                 .enabled(source.isEnabled())
                 .http(source.getHttp())
