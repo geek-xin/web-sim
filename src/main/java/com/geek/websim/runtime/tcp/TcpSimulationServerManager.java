@@ -37,7 +37,7 @@ import java.util.function.Supplier;
 
 @Component
 public class TcpSimulationServerManager {
-    private static final String DEFAULT_HOST = "127.0.0.1";
+    private static final String DEFAULT_HOST = "0.0.0.0";
     static final String FRAME_TOO_LARGE_RESPONSE = "ERR frame too large\n";
     private static final String NO_MATCH_RESPONSE = "ERR no simulation\n";
     private static final int MAX_FRAME_CHARS = 8 * 1024;

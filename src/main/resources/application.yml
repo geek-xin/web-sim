@@ -1,5 +1,5 @@
 server:
-  address: 127.0.0.1
+  address: 0.0.0.0
   port: 9998
 
 spring:
@@ -26,5 +26,5 @@ web-sim:
   hot-reload-enabled: true
   hot-reload-debounce-ms: 500
   tcp:
-    default-host: 127.0.0.1
+    default-host: 0.0.0.0
     max-frame-bytes: 65536

@@ -51,7 +51,7 @@ public class SimulationConfigServiceImpl implements SimulationConfigService {
     private static final Pattern SAFE_ID = Pattern.compile("[a-zA-Z0-9_-]+");
     private static final Pattern RESPONSE_HEADER_NAME = Pattern.compile("[!#$%&'*+.^_`|~0-9A-Za-z-]+");
     private static final DateTimeFormatter ID_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-    private static final String DEFAULT_TCP_HOST = "127.0.0.1";
+    private static final String DEFAULT_TCP_HOST = "0.0.0.0";
     private static final Set<String> DISALLOWED_RESPONSE_HEADERS = Set.of("content-length", "transfer-encoding");
 
     private final ObjectMapper objectMapper;

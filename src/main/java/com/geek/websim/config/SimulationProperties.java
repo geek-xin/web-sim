@@ -50,14 +50,14 @@ public record SimulationProperties(
             hotReloadDebounceMs = 500;
         }
         if (tcp == null) {
-            tcp = new Tcp("127.0.0.1", 65_536);
+            tcp = new Tcp("0.0.0.0", 65_536);
         }
     }
 
     public record Tcp(String defaultHost, int maxFrameBytes) {
         public Tcp {
             if (defaultHost == null || defaultHost.isBlank()) {
-                defaultHost = "127.0.0.1";
+                defaultHost = "0.0.0.0";
             }
             if (maxFrameBytes <= 0) {
                 maxFrameBytes = 65_536;

@@ -13,7 +13,7 @@
 
     <groupId>com.geek</groupId>
     <artifactId>web-sim</artifactId>
-    <version>0.1.2</version>
+    <version>0.1.3</version>
     <packaging>jar</packaging>
     <name>web-sim</name>
     <description>High-concurrency HTTP/TCP simulator with a React admin console</description>
