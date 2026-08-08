@@ -16,7 +16,6 @@ import com.geek.websim.web.model.enums.ConditionOperator;
 import com.geek.websim.web.model.enums.ConditionSource;
 import com.geek.websim.web.model.enums.HttpMatchMode;
 import com.geek.websim.web.model.enums.ProtocolType;
-import com.geek.websim.web.model.enums.ResponseVariantStrategy;
 import com.geek.websim.web.model.enums.TcpFrameMode;
 import com.geek.websim.web.service.SimulationConfigService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -312,21 +311,6 @@ public class SimulationConfigServiceImpl implements SimulationConfigService {
             throw new BusinessException(ErrorCodeEnum.BAD_REQUEST, "分支响应不能为空");
         }
         normalizeResponse(branch.getResponse());
-        if (branch.getResponseVariants() == null) {
-            branch.setResponseVariants(new ArrayList<>());
-        }
-        if (branch.getResponseVariantsEnabled() == null) {
-            branch.setResponseVariantsEnabled(true);
-        }
-        for (SimulationResponse responseVariant : branch.getResponseVariants()) {
-            if (responseVariant == null) {
-                throw new BusinessException(ErrorCodeEnum.BAD_REQUEST, "分支响应变体不能为空");
-            }
-            normalizeResponse(responseVariant);
-        }
-        if (branch.getVariantStrategy() == null) {
-            branch.setVariantStrategy(ResponseVariantStrategy.ROUND_ROBIN);
-        }
     }
 
     private void normalizeCondition(SimulationCondition condition) {

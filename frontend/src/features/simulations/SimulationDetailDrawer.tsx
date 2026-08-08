@@ -178,7 +178,6 @@ function expandBranchBodies(branches: SimulationConfig['branches']) {
   return (branches || []).map((branch) => ({
     ...branch,
     response: expandResponseBody(branch.response),
-    responseVariants: branch.responseVariants?.map(expandResponseBody) ?? branch.responseVariants,
   }));
 }
 

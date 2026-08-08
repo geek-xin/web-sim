@@ -14,12 +14,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import {
+  branchEnabled,
+  branchName,
   configToPayload,
   defaultPayload,
-  hasEnabledErrorBranch,
-  hasErrorBranch,
   normalizeTags,
-  setErrorBranchesEnabled,
+  normalizeBranchesForSave,
   shouldResetProtocolPayload,
   validatePayload,
 } from './sim-utils';
@@ -40,13 +40,16 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
   const [payload, setPayload] = useState<SimulationConfigPayload>(() => initialPayload(mode, config));
   const [tagsText, setTagsText] = useState(() => tagsToText(initialPayload(mode, config).tags));
   const [branchesText, setBranchesText] = useState(() => JSON.stringify(initialPayload(mode, config).branches, null, 2));
+  const [activeBranchIndex, setActiveBranchIndex] = useState(() => 0);
+  const [activeBranchText, setActiveBranchText] = useState(() => firstBranchText(initialPayload(mode, config).branches));
   const [submitting, setSubmitting] = useState(false);
   const [defaultGuideTab, setDefaultGuideTab] = useState<ResponseGuideTab>('edit');
   const [branchGuideTab, setBranchGuideTab] = useState<ResponseGuideTab>('edit');
+  const [showTemplate, setShowTemplate] = useState(false);
   const protocolLocked = mode === 'edit' && payload.enabled;
   const parsedBranches = useMemo(() => parseBranchesText(branchesText), [branchesText]);
-  const canToggleErrorBranch = parsedBranches != null && hasErrorBranch(parsedBranches);
-  const errorBranchEnabled = parsedBranches != null && hasEnabledErrorBranch(parsedBranches);
+  const activeBranch = useMemo(() => parseSingleBranch(activeBranchText), [activeBranchText]);
+  const activeBranchIsEnabled = activeBranch != null && branchEnabled(activeBranch);
 
   useEffect(() => {
     if (!open) return;
@@ -54,8 +57,11 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
     setPayload(next);
     setTagsText(tagsToText(next.tags));
     setBranchesText(JSON.stringify(next.branches, null, 2));
+    setActiveBranchIndex(0);
+    setActiveBranchText(firstBranchText(next.branches));
     setDefaultGuideTab('edit');
     setBranchGuideTab('edit');
+    setShowTemplate(false);
   }, [config, mode, open]);
 
   const title = useMemo(() => {
@@ -77,6 +83,8 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
       enabled: current.enabled,
     }));
     setBranchesText(JSON.stringify(next.branches, null, 2));
+    setActiveBranchIndex(0);
+    setActiveBranchText(firstBranchText(next.branches));
   };
 
   const formatDefaultBody = () => {
@@ -89,29 +97,77 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
     }));
   };
 
-  const toggleErrorBranch = () => {
-    const branches = parseBranchesText(branchesText);
-    if (!branches) {
-      toast.error('分支 JSON 格式无效，无法切换错误分支。');
+  const commitActiveDraft = (): SimulationConfigPayload['branches'] => {
+    const current = parseBranchesText(branchesText) ?? [];
+    return commitBranchDraft(current, activeBranchIndex, activeBranchText);
+  };
+
+  const selectBranch = (index: number) => {
+    if (index === activeBranchIndex) {
       return;
     }
-    if (!hasErrorBranch(branches)) {
-      toast.error('未找到错误分支。');
+    const next = commitActiveDraft();
+    setBranchesText(JSON.stringify(next, null, 2));
+    setActiveBranchIndex(index);
+    setActiveBranchText(stringifyBranchForEdit(next[index]));
+  };
+
+  const addBranch = () => {
+    const next = commitActiveDraft();
+    const newBranch: SimulationBranch = {
+      name: `分支 ${next.length + 1}`,
+      priority: 50,
+      conditions: [],
+      response: { status: 200, headers: {}, body: '', delayMs: 0 },
+    };
+    next.push(newBranch);
+    setBranchesText(JSON.stringify(next, null, 2));
+    setActiveBranchIndex(next.length - 1);
+    setActiveBranchText(stringifyBranchForEdit(newBranch));
+  };
+
+  const removeBranch = () => {
+    const current = parseBranchesText(branchesText) ?? [];
+    if (current.length === 0) {
       return;
     }
-    setBranchesText(JSON.stringify(setErrorBranchesEnabled(branches, !hasEnabledErrorBranch(branches)), null, 2));
+    const next = current.filter((_, index) => index !== activeBranchIndex);
+    const nextIndex = Math.min(activeBranchIndex, Math.max(0, next.length - 1));
+    setBranchesText(JSON.stringify(next, null, 2));
+    setActiveBranchIndex(nextIndex);
+    setActiveBranchText(stringifyBranchForEdit(next[nextIndex]));
+  };
+
+  const updateActiveBranch = (mutate: (branch: SimulationBranch) => void) => {
+    if (!activeBranch) {
+      return;
+    }
+    const next = { ...activeBranch };
+    mutate(next);
+    setActiveBranchText(stringifyBranchForEdit(next));
+  };
+
+  const toggleActiveBranchEnabled = () => {
+    if (!activeBranch) {
+      return;
+    }
+    const enabled = !branchEnabled(activeBranch);
+    updateActiveBranch((branch) => {
+      branch.priority = enabled ? Math.max(1, branch.priority || 50) : 0;
+    });
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    let branches: SimulationConfigPayload['branches'];
-    try {
-      branches = JSON.parse(branchesText) as SimulationConfigPayload['branches'];
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : '分支 JSON 格式无效。');
+    if (activeBranchText.trim() && parseSingleBranch(activeBranchText) == null) {
+      toast.error('当前分支 JSON 格式无效，请修正后再保存。');
       return;
     }
+    const branches = normalizeBranchesForSave(commitActiveDraft().map((branch) => ({
+      ...branch,
+      response: branch.response ? { ...branch.response, body: formatJsonText(branch.response.body) } : branch.response,
+    })));
 
     const normalized: SimulationConfigPayload = {
       ...payload,
@@ -146,8 +202,8 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[1180px] gap-0 overflow-hidden p-0 [&>button.absolute]:hidden">
-        <DialogHeader className="relative z-20 rounded-t-[21px] border-b-[3px] border-clay-border bg-white/95 p-6 pr-20 shadow-[0_4px_0_rgba(17,17,17,0.12)] backdrop-blur">
+      <DialogContent className="flex max-h-[calc(100vh-8px)] w-[1180px] flex-col gap-0 overflow-hidden p-0 [&>button.absolute]:hidden">
+        <DialogHeader className="relative z-20 shrink-0 rounded-t-[21px] border-b-[3px] border-clay-border bg-white/95 p-6 pr-20 shadow-[0_4px_0_rgba(17,17,17,0.12)] backdrop-blur">
           <button
             type="button"
             className="absolute right-5 top-5 inline-flex cursor-pointer items-center justify-center rounded-full border-[3px] border-clay-border bg-clay-pink p-1 shadow-clay-sm transition hover:-translate-y-0.5 hover:shadow-clay focus:outline-none focus:ring-4 focus:ring-clay-primary/35"
@@ -180,7 +236,7 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
           </div>
         </DialogHeader>
 
-        <form id="simulation-config-form" className="grid max-h-[calc(90vh-158px)] gap-5 overflow-y-auto p-6" onSubmit={handleSubmit}>
+        <form id="simulation-config-form" className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4" onSubmit={handleSubmit}>
           <section className="grid gap-4 rounded-[24px] border-[3px] border-clay-border bg-clay-cream p-4 shadow-clay-sm">
             <div className="grid grid-cols-[minmax(0,1fr)_minmax(260px,0.8fr)_180px] items-stretch gap-4">
               <Field label="名称" htmlFor="simulation-name">
@@ -316,6 +372,19 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
             </section>
           )}
 
+          <div className="grid items-start gap-3 rounded-[24px] border-[3px] border-clay-border bg-clay-cream p-3 shadow-clay-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-black text-clay-ink">响应模板</h3>
+                <p className="text-xs font-bold text-clay-muted">默认响应和分支共用同一套模板变量。</p>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={() => setShowTemplate((current) => !current)}>
+                {showTemplate ? '收起模板' : '查看模板'}
+              </Button>
+            </div>
+            {showTemplate ? <TemplateReference title="响应体模板变量" /> : null}
+          </div>
+
           <div className="grid items-start grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-5">
             <section className="grid content-start gap-4 rounded-[24px] border-[3px] border-clay-border bg-white p-4 shadow-clay-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -326,7 +395,6 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
                   onChange={setDefaultGuideTab}
                 />
               </div>
-              {defaultGuideTab === 'template' ? <TemplateReference title="默认响应体模板" /> : null}
               {defaultGuideTab === 'fields' ? <DefaultBodyFieldReference /> : null}
               {defaultGuideTab === 'edit' ? (
                 <div className="grid gap-4">
@@ -350,7 +418,7 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
                         defaultResponse: { ...current.defaultResponse, body: event.target.value },
                       }))}
                       onBlur={formatDefaultBody}
-                      rows={12}
+                      rows={9}
                     />
                   </Field>
                 </div>
@@ -358,39 +426,120 @@ export function SimulationFormDialog({ open, mode, config, onOpenChange, onSubmi
             </section>
 
             <section className="grid content-start gap-4 rounded-[24px] border-[3px] border-clay-border bg-white p-4 shadow-clay-sm">
-              <div className="grid gap-2">
+              <div className="grid gap-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <label className="text-sm font-black text-clay-ink" htmlFor="branches-json">分支 JSON</label>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-black text-clay-ink">分支配置</label>
                     <GuideTabs
-                      ariaLabel="分支 JSON 视图"
+                      ariaLabel="分支配置视图"
                       value={branchGuideTab}
                       onChange={setBranchGuideTab}
                     />
-                    <Button
-                      type="button"
-                      variant={errorBranchEnabled ? 'danger' : 'primary'}
-                      size="sm"
-                      disabled={!canToggleErrorBranch}
-                      onClick={toggleErrorBranch}
-                    >
-                      {errorBranchEnabled ? '禁用' : '启用'}
-                    </Button>
                   </div>
+                  <Button type="button" variant="outline" size="sm" onClick={addBranch}>添加分支</Button>
                 </div>
                 <p id="branches-json-help" className="text-xs font-bold text-clay-muted">
-                  可直接编辑分支数组；支持条件、优先级、主响应、probability 出现概率、responseVariants 响应变体，以及 ROUND_ROBIN/RANDOM 交错策略。
+                  每个分支配置命中机率和响应。命中机率为 0-100%，多个分支按机率随机命中，未命中时返回默认响应。
                 </p>
-                {branchGuideTab === 'template' ? <TemplateReference title="分支 / 错误响应体模板" /> : null}
                 {branchGuideTab === 'fields' ? <BranchFieldReference /> : null}
                 {branchGuideTab === 'edit' ? (
-                  <Textarea
-                    id="branches-json"
-                    value={branchesText}
-                    onChange={(event) => setBranchesText(event.target.value)}
-                    rows={16}
-                    aria-describedby="branches-json-help"
-                  />
+                  parsedBranches == null ? (
+                    <div className="rounded-2xl border-[3px] border-clay-border bg-clay-cream p-4 text-center text-sm font-bold text-clay-muted">
+                      分支数组 JSON 格式无效，请检查后重试。
+                    </div>
+                  ) : parsedBranches.length === 0 ? (
+                    <div className="rounded-2xl border-[3px] border-clay-border bg-clay-cream p-4 text-center text-sm font-bold text-clay-muted">
+                      暂无分支，点击“添加分支”创建第一个分支。
+                    </div>
+                  ) : (
+                    <div className="grid gap-3">
+                      <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="分支列表">
+                        {parsedBranches.map((branch, index) => {
+                          const displayBranch = index === activeBranchIndex && activeBranch ? activeBranch : branch;
+                          return (
+                            <Button
+                              key={index}
+                              type="button"
+                              role="tab"
+                              aria-selected={index === activeBranchIndex}
+                              variant={index === activeBranchIndex ? 'primary' : 'outline'}
+                              size="sm"
+                              className="min-w-0 gap-2"
+                              onClick={() => selectBranch(index)}
+                            >
+                              <span className="font-mono text-[0.7rem] opacity-70">{index + 1}</span>
+                              <span className="max-w-[12rem] truncate">{branchName(displayBranch)}</span>
+                              <span
+                                className={cn(
+                                  'h-2 w-2 shrink-0 rounded-full border-[2px]',
+                                  index === activeBranchIndex ? 'border-white' : 'border-clay-border',
+                                  branchEnabled(displayBranch) ? 'bg-clay-success' : 'bg-clay-muted',
+                                )}
+                                aria-label={branchEnabled(displayBranch) ? '已启用' : '已停用'}
+                              />
+                            </Button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="grid gap-3 rounded-2xl border-[3px] border-clay-border bg-clay-cream p-3">
+                        <div className="grid grid-cols-[minmax(0,1fr)_110px_auto] items-end gap-3">
+                          <Field label="分支名称" htmlFor={`branch-name-${activeBranchIndex}`}>
+                            <Input
+                              id={`branch-name-${activeBranchIndex}`}
+                              value={activeBranch?.name ?? ''}
+                              disabled={activeBranch == null}
+                              onChange={(event) => updateActiveBranch((branch) => { branch.name = event.target.value; })}
+                              placeholder="例如 成功分支"
+                            />
+                          </Field>
+                          <Field label="命中机率 (%)" htmlFor={`branch-priority-${activeBranchIndex}`}>
+                            <Input
+                              id={`branch-priority-${activeBranchIndex}`}
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={activeBranch?.priority ?? 0}
+                              disabled={activeBranch == null}
+                              onChange={(event) => updateActiveBranch((branch) => {
+                                branch.priority = Math.max(0, Math.min(100, event.target.value ? Number(event.target.value) : 0));
+                              })}
+                            />
+                          </Field>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant={activeBranchIsEnabled ? 'orange' : 'primary'}
+                              size="sm"
+                              disabled={activeBranch == null}
+                              onClick={toggleActiveBranchEnabled}
+                            >
+                              {activeBranchIsEnabled ? '停用' : '启用'}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="danger"
+                              size="sm"
+                              disabled={activeBranch == null}
+                              onClick={removeBranch}
+                            >
+                              删除
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="grid gap-2 text-sm font-black text-clay-ink">
+                          <span>分支 JSON</span>
+                          <Textarea
+                            id="active-branch-json"
+                            value={activeBranchText}
+                            onChange={(event) => setActiveBranchText(event.target.value)}
+                            rows={9}
+                            aria-describedby="branches-json-help"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )
                 ) : null}
               </div>
             </section>
@@ -450,6 +599,71 @@ function parseBranchesText(value: string): SimulationBranch[] | null {
   }
 }
 
+function commitBranchDraft(branches: SimulationBranch[], index: number, draft: string): SimulationBranch[] {
+  if (branches.length === 0 || index < 0 || index >= branches.length) {
+    return branches;
+  }
+  const next = [...branches];
+  try {
+    const parsed = JSON.parse(draft) as SimulationBranch;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      next[index] = collapseBranchBody(parsed);
+    }
+  } catch (_error) {
+    // 保留原分支，避免非法 JSON 覆盖数据
+  }
+  return next;
+}
+
+function parseSingleBranch(value: string): SimulationBranch | null {
+  try {
+    const parsed = JSON.parse(value) as SimulationBranch;
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function stringifyBranchForEdit(branch?: SimulationBranch | null): string {
+  return branch ? JSON.stringify(expandBranchBody(branch), null, 2) : '';
+}
+
+// 编辑视图里把 JSON 字符串形式的 body 展开成对象，展示为真实换行缩进，避免出现 \n 转义符。
+function expandBranchBody(branch: SimulationBranch): SimulationBranch {
+  const body = branch.response?.body;
+  if (typeof body !== 'string' || !body.trim()) {
+    return branch;
+  }
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (parsed !== null && typeof parsed === 'object') {
+      return {
+        ...branch,
+        response: { ...branch.response, body: parsed as unknown as string },
+      };
+    }
+  } catch (_error) {
+    // 非 JSON 文本保持原样
+  }
+  return branch;
+}
+
+// 提交前把编辑视图中的对象 body 压缩回 JSON 字符串。
+function collapseBranchBody(branch: SimulationBranch): SimulationBranch {
+  const body = branch.response?.body as unknown;
+  if (body !== null && typeof body === 'object') {
+    return {
+      ...branch,
+      response: { ...branch.response, body: JSON.stringify(body) },
+    };
+  }
+  return branch;
+}
+
+function firstBranchText(branches: SimulationBranch[]): string {
+  return stringifyBranchForEdit(branches[0]);
+}
+
 function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: ReactNode }) {
   return (
     <label className="grid gap-2 text-sm font-black text-clay-ink" htmlFor={htmlFor}>
@@ -474,7 +688,6 @@ function GuideTabs({
       value={value}
       options={[
         { value: 'edit', label: '编辑' },
-        { value: 'template', label: '模板' },
         { value: 'fields', label: '字段' },
       ]}
       onChange={onChange}
@@ -482,21 +695,28 @@ function GuideTabs({
   );
 }
 
-function TemplateReference({ title }: { title: string }) {
-  const examples = [
-    { token: '{{path.id}}', detail: '路径模板变量，例如 /users/{id} 中的 id。' },
-    { token: '{{query.seq}}', detail: '查询参数，例如 ?seq=10。' },
-    { token: '{{request.header.X-Request-Id}}', detail: '请求头，区分大小写。' },
-    { token: '{{tcp.body}}', detail: 'TCP 请求报文内容。' },
-    { token: '{{random.uuid}}', detail: '随机 UUID。' },
-    { token: '{{random.int:1,100}}', detail: '1 到 100 的随机整数，包含两端。' },
-    { token: '{{random.float:0,1}}', detail: '0 到 1 的随机小数。' },
-    { token: '{{random.bool}}', detail: '随机 true / false。' },
-    { token: '{{random.timestamp}}', detail: '当前 ISO 时间。' },
-    { token: '{{random.pick:A,B,C}}', detail: '从列表中随机选择一个值。' },
-    { token: '{{random.name}}', detail: '随机姓名。' },
-  ];
+const RESPONSE_TEMPLATE_EXAMPLES = [
+  { token: '{{path.id}}', detail: '路径模板变量，例如 /users/{id} 中的 id。' },
+  { token: '{{query.seq}}', detail: '查询参数，例如 ?seq=10。' },
+  { token: '{{request.header.X-Request-Id}}', detail: '请求头，区分大小写。' },
+  { token: '{{tcp.body}}', detail: 'TCP 请求报文内容。' },
+  { token: '{{random.uuid}}', detail: '随机 UUID。' },
+  { token: '{{random.int:1,100}}', detail: '1 到 100 的随机整数，包含两端。' },
+  { token: '{{random.float:0,1}}', detail: '0 到 1 的随机小数。' },
+  { token: '{{random.bool}}', detail: '随机 true / false。' },
+  { token: '{{random.timestamp}}', detail: '当前 ISO 时间。' },
+  { token: '{{random.pick:A,B,C}}', detail: '从列表中随机选择一个值。' },
+  { token: '{{random.name}}', detail: '随机姓名。' },
+];
 
+const RESPONSE_COMMON_FIELDS = [
+  { name: 'status', detail: '响应状态码。HTTP 通常使用 200、404、503；TCP 错误可用 0 或业务约定状态。' },
+  { name: 'headers', detail: '响应头对象，值里也可以使用模板变量，例如 X-Trace-Id。' },
+  { name: 'body', detail: '实际返回的响应体字符串；可以写 JSON、文本或 TCP 报文内容。' },
+  { name: 'delayMs', detail: '响应延迟毫秒数，0 表示立即返回。' },
+];
+
+function TemplateReference({ title }: { title: string }) {
   return (
     <div className="rounded-2xl border-[3px] border-clay-border bg-clay-cream p-3 shadow-[1px_2px_0_rgba(17,17,17,0.45)]">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -504,7 +724,7 @@ function TemplateReference({ title }: { title: string }) {
         <span className="text-[0.68rem] font-bold text-clay-muted">响应体和响应头均支持</span>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2">
-        {examples.map((example) => (
+        {RESPONSE_TEMPLATE_EXAMPLES.map((example) => (
           <div key={example.token} className="rounded-xl border-[2px] border-clay-border bg-white px-3 py-2">
             <code className="block break-all text-[0.7rem] font-black text-clay-ink">{example.token}</code>
             <span className="mt-1 block text-[0.68rem] font-bold leading-snug text-clay-muted">{example.detail}</span>
@@ -517,10 +737,7 @@ function TemplateReference({ title }: { title: string }) {
 
 function DefaultBodyFieldReference() {
   const fields = [
-    { name: 'status', detail: '响应状态码。HTTP 通常使用 200、404、503；TCP 错误可用 0 或业务约定状态。' },
-    { name: 'headers', detail: '响应头对象，值里也可以使用模板变量，例如 X-Trace-Id。' },
-    { name: 'body', detail: '实际返回的响应体字符串；可以写 JSON、文本或 TCP 报文内容。' },
-    { name: 'delayMs', detail: '响应延迟毫秒数，0 表示立即返回。' },
+    ...RESPONSE_COMMON_FIELDS,
     { name: 'ok', detail: '示例业务字段，表示请求是否成功；可以按你的接口协议改名或删除。' },
     { name: 'id', detail: '示例业务字段，通常填 {{path.id}}，来自路径模板变量。' },
     { name: 'sequence', detail: '示例业务字段，通常填 {{query.seq}}，来自查询参数。' },
@@ -536,24 +753,12 @@ function DefaultBodyFieldReference() {
 function BranchFieldReference() {
   const fields = [
     { name: 'name', detail: '分支名称，用于管理台展示和日志识别，例如“错误分支”。' },
-    { name: 'priority', detail: '匹配优先级，数字越小越先判断。多个条件分支同时命中时，优先级小的先返回。' },
-    { name: 'conditions', detail: '分支条件数组。为空时表示无条件分支，会参与默认响应之间的交错或概率选择。' },
-    { name: 'conditions.source', detail: '条件来源：QUERY、HEADER、PATH、BODY 或 TCP_BODY。' },
-    { name: 'conditions.key', detail: '要读取的参数名、请求头名、路径变量名或 JSON Path。' },
-    { name: 'conditions.operator', detail: '比较方式：EQ、NOT_EQ、CONTAINS、REGEX、EXISTS、JSON_PATH。' },
-    { name: 'conditions.value', detail: '比较目标值；EXISTS 不需要 value。' },
+    { name: 'priority', detail: '分支命中机率，取值 0-100。0 表示停用，100 表示必然命中。' },
     { name: 'response', detail: '分支命中后的主响应对象。' },
-    { name: 'response.status', detail: '分支响应状态码，例如错误分支常用 503。' },
-    { name: 'response.headers', detail: '分支响应头对象，值支持模板变量。' },
-    { name: 'response.body', detail: '分支响应体，常用于模拟错误 JSON 或异常报文。' },
-    { name: 'response.delayMs', detail: '分支响应延迟毫秒数。' },
-    { name: 'probability', detail: '无条件分支出现概率，范围 0 到 1；多个分支概率总和小于 1 时，剩余概率走默认响应。' },
-    { name: 'responseVariants', detail: '响应变体数组。分支命中后会在主响应和变体响应之间选择。' },
-    { name: 'responseVariantsEnabled', detail: '是否启用响应变体；关闭后保留变体定义但只返回主响应。' },
-    { name: 'variantStrategy', detail: '响应变体策略：ROUND_ROBIN 轮询，RANDOM 随机。' },
+    ...RESPONSE_COMMON_FIELDS.map((field) => ({ name: `response.${field.name}`, detail: field.detail })),
   ];
 
-  return <FieldReference title="分支 JSON 字段说明" fields={fields} />;
+  return <FieldReference title="分支字段说明" fields={fields} />;
 }
 
 function FieldReference({ title, fields }: { title: string; fields: Array<{ name: string; detail: string }> }) {

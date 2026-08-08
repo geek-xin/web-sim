@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://spring.io/projects/spring-boot"><img alt="Spring Boot" src="https://img.shields.io/badge/Spring%20Boot-3.5.2-6DB33F?style=flat-square&logo=springboot&logoColor=white"></a>
-  <img alt="Release" src="https://img.shields.io/badge/Release-0.1.3-111827?style=flat-square">
+  <img alt="Release" src="https://img.shields.io/badge/Release-0.2.0-111827?style=flat-square">
   <img alt="Java 21" src="https://img.shields.io/badge/Java-21-007396?style=flat-square&logo=openjdk&logoColor=white">
   <img alt="Maven" src="https://img.shields.io/badge/Maven-build-C71A36?style=flat-square&logo=apachemaven&logoColor=white">
   <img alt="React" src="https://img.shields.io/badge/UI-React%2019%20%2B%20Vite%207-149ECA?style=flat-square&logo=react&logoColor=white">
@@ -23,7 +23,7 @@
 
 `web-sim` 是一个面向本地开发、联调、测试环境和压测前置验证的轻量 HTTP/TCP 接口模拟器。它参考 `web-router` 的轻量架构和卡片式前端体验，把每个模拟请求保存为本地 JSON 配置，并通过 Spring Boot WebFlux、Reactor Netty 与 React 管理后台实现“配置即改即生效”。
 
-当前版本：`0.1.3`。
+当前版本：`0.2.0`。
 
 ## 功能总览
 
@@ -134,8 +134,8 @@ Vite 默认访问 `http://127.0.0.1:5174`（监听 `0.0.0.0:5174`，局域网内
 scripts/build-dist.sh --with-tests
 
 # Linux/macOS
-tar -xzf target/web-sim-0.1.3.tar.gz
-cd web-sim-0.1.3
+tar -xzf target/web-sim-0.2.0.tar.gz
+cd web-sim-0.2.0
 ./run.sh
 ./stop.sh
 

@@ -88,60 +88,6 @@ export function filterSimulations(
   });
 }
 
-export function hasErrorBranch(branches: SimulationBranch[]): boolean {
-  return branches.some((branch) => hasErrorPrimaryResponse(branch) || hasErrorResponseVariant(branch));
-}
-
-export function hasEnabledErrorBranch(branches: SimulationBranch[]): boolean {
-  return branches.some((branch) => {
-    if (hasErrorPrimaryResponse(branch) && branch.probability !== 0) {
-      return true;
-    }
-    return hasErrorResponseVariant(branch) && branch.responseVariantsEnabled !== false;
-  });
-}
-
-export function setErrorBranchesEnabled(branches: SimulationBranch[], enabled: boolean): SimulationBranch[] {
-  return branches.map((branch) => {
-    const hasPrimaryError = hasErrorPrimaryResponse(branch);
-    const hasVariantError = hasErrorResponseVariant(branch);
-    if (!hasPrimaryError && !hasVariantError) {
-      return branch;
-    }
-    const next: SimulationBranch = { ...branch };
-    if (hasPrimaryError) {
-      next.probability = enabled ? enabledErrorProbability(branch.probability) : 0;
-    }
-    if (hasVariantError) {
-      next.responseVariantsEnabled = enabled;
-    }
-    return next;
-  });
-}
-
-function hasErrorPrimaryResponse(branch: SimulationBranch): boolean {
-  const branchName = branch.name.toLowerCase();
-  return branchName.includes('错误')
-    || branchName.includes('error')
-    || Number(branch.response?.status ?? 0) >= 400;
-}
-
-function hasErrorResponseVariant(branch: SimulationBranch): boolean {
-  return normalizeResponses(branch.responseVariants).some(isErrorResponse);
-}
-
-function normalizeResponses(responses?: unknown): Array<{ status?: number | null }> {
-  return Array.isArray(responses) ? responses.filter(isObject) : [];
-}
-
-function isErrorResponse(response: { status?: number | null }): boolean {
-  return Number(response.status ?? 0) >= 400;
-}
-
-function enabledErrorProbability(probability?: number | null): number {
-  return typeof probability === 'number' && probability > 0 ? probability : 0.5;
-}
-
 export function defaultPayload(protocol: ProtocolType): SimulationConfigPayload {
   if (protocol === 'TCP') {
     return {
@@ -163,31 +109,14 @@ export function defaultPayload(protocol: ProtocolType): SimulationConfigPayload 
       branches: [
         {
           name: '成功分支',
-          priority: 0,
-          conditions: [
-            {
-              source: 'TCP_BODY',
-              key: null,
-              operator: 'CONTAINS',
-              value: 'ping',
-            },
-          ],
+          priority: 100,
+          conditions: [],
           response: {
             status: 200,
             headers: {},
             body: 'pong {{random.uuid}}',
             delayMs: 0,
           },
-          responseVariants: [
-            {
-              status: 500,
-              headers: {},
-              body: 'ERR 模拟异常 {{random.uuid}}\n',
-              delayMs: 0,
-            },
-          ],
-          responseVariantsEnabled: true,
-          variantStrategy: 'ROUND_ROBIN',
         },
       ],
       defaultResponse: {
@@ -218,31 +147,14 @@ export function defaultPayload(protocol: ProtocolType): SimulationConfigPayload 
     branches: [
       {
         name: '成功分支',
-        priority: 0,
-        conditions: [
-          {
-            source: 'QUERY',
-            key: 'status',
-            operator: 'EQ',
-            value: 'ok',
-          },
-        ],
+        priority: 100,
+        conditions: [],
         response: {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
           body: '{\n  "id": "{{path.id}}",\n  "requestId": "{{random.uuid}}",\n  "status": "ok"\n}',
           delayMs: 0,
         },
-        responseVariants: [
-          {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' },
-            body: '{\n  "error": "模拟异常",\n  "requestId": "{{random.uuid}}"\n}',
-            delayMs: 0,
-          },
-        ],
-        responseVariantsEnabled: true,
-        variantStrategy: 'ROUND_ROBIN',
       },
     ],
     defaultResponse: {
@@ -258,7 +170,6 @@ const HTTP_MATCH_MODES = new Set(['EXACT', 'PREFIX', 'TEMPLATE']);
 const TCP_FRAME_MODES = new Set(['LINE', 'LENGTH_HEADER', 'HEX']);
 const CONDITION_SOURCES = new Set(['QUERY', 'HEADER', 'PATH', 'BODY', 'TCP_BODY']);
 const CONDITION_OPERATORS = new Set(['EQ', 'NOT_EQ', 'CONTAINS', 'REGEX', 'EXISTS', 'JSON_PATH']);
-const RESPONSE_VARIANT_STRATEGIES = new Set(['ROUND_ROBIN', 'RANDOM']);
 
 export function validatePayload(payload: SimulationConfigPayload): string[] {
   const errors: string[] = [];
@@ -323,37 +234,14 @@ export function validatePayload(payload: SimulationConfigPayload): string[] {
       errors.push(`${branchLabel} 名称不能为空。`);
     }
 
-    if (!Number.isInteger(branch.priority)) {
-      errors.push(`${branchLabel} 优先级必须是整数。`);
+    if (!Number.isInteger(branch.priority) || branch.priority < 0 || branch.priority > 100) {
+      errors.push(`${branchLabel} 命中机率必须是 0 到 100 之间的整数。`);
     }
 
     if (!isObject(branch.response)) {
       errors.push(`${branchLabel} 响应不能为空。`);
     } else if (branch.response.status != null && !isIntegerInRange(branch.response.status, 100, 999)) {
       errors.push(`${branchLabel} 响应状态码必须是 100 到 999 之间的整数。`);
-    }
-
-    if (branch.responseVariants != null) {
-      if (!Array.isArray(branch.responseVariants)) {
-        errors.push(`${branchLabel} 响应变体必须是数组。`);
-      } else {
-        branch.responseVariants.forEach((responseVariant, responseIndex) => {
-          const responseLabel = `${branchLabel} 响应变体 ${responseIndex + 1}`;
-          if (!isObject(responseVariant)) {
-            errors.push(`${responseLabel} 必须是对象。`);
-          } else if (responseVariant.status != null && !isIntegerInRange(responseVariant.status, 100, 999)) {
-            errors.push(`${responseLabel} 状态码必须是 100 到 999 之间的整数。`);
-          }
-        });
-      }
-    }
-
-    if (branch.variantStrategy != null && !RESPONSE_VARIANT_STRATEGIES.has(String(branch.variantStrategy))) {
-      errors.push(`${branchLabel} 响应变体策略无效。`);
-    }
-
-    if (branch.probability != null && (typeof branch.probability !== 'number' || branch.probability < 0 || branch.probability > 1)) {
-      errors.push(`${branchLabel} 出现概率必须是 0 到 1 之间的数字。`);
     }
 
     if (branch.conditions != null && !Array.isArray(branch.conditions)) {
@@ -411,4 +299,28 @@ export function configToPayload(config: SimulationConfig): SimulationConfigPaylo
     branches: config.branches || [],
     defaultResponse: config.defaultResponse || defaultPayload(config.protocol).defaultResponse,
   };
+}
+
+/**
+ * 保存前规范化分支：只保留核心字段（名称、命中机率、响应），
+ * 命中机率用 priority（0-100）承载，0 表示停用，100 表示必然命中。
+ */
+export function normalizeBranchesForSave(branches: SimulationBranch[]): SimulationBranch[] {
+  return (branches || []).map((branch) => {
+    const priority = Math.max(0, Math.min(100, branch.priority ?? 0));
+    return {
+      name: branch.name,
+      priority,
+      conditions: [],
+      response: branch.response,
+    };
+  });
+}
+
+export function branchEnabled(branch: SimulationBranch): boolean {
+  return branch.priority > 0;
+}
+
+export function branchName(branch: SimulationBranch): string {
+  return branch.name || '未命名分支';
 }

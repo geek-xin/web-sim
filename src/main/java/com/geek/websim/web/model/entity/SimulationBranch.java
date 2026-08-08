@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
-import com.geek.websim.web.model.enums.ResponseVariantStrategy;
 
 @Data
 @Builder
@@ -19,10 +18,4 @@ public class SimulationBranch {
     @Builder.Default
     private List<SimulationCondition> conditions = new ArrayList<>();
     private SimulationResponse response;
-    @Builder.Default
-    private List<SimulationResponse> responseVariants = new ArrayList<>();
-    @Builder.Default
-    private Boolean responseVariantsEnabled = true;
-    private ResponseVariantStrategy variantStrategy;
-    private Double probability;
 }

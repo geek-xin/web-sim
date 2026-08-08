@@ -3,7 +3,6 @@ export type HttpMatchMode = 'EXACT' | 'PREFIX' | 'TEMPLATE';
 export type TcpFrameMode = 'LINE' | 'LENGTH_HEADER' | 'HEX';
 export type ConditionSource = 'QUERY' | 'HEADER' | 'PATH' | 'BODY' | 'TCP_BODY';
 export type ConditionOperator = 'EQ' | 'NOT_EQ' | 'CONTAINS' | 'REGEX' | 'EXISTS' | 'JSON_PATH';
-export type ResponseVariantStrategy = 'ROUND_ROBIN' | 'RANDOM';
 
 export interface HttpRule {
   method: string;
@@ -42,10 +41,6 @@ export interface SimulationBranch {
   priority: number;
   conditions: SimulationCondition[];
   response: SimulationResponse;
-  responseVariants?: SimulationResponse[] | null;
-  responseVariantsEnabled?: boolean | null;
-  variantStrategy?: ResponseVariantStrategy | null;
-  probability?: number | null;
 }
 
 export interface SimulationConfig {

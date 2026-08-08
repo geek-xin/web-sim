@@ -10,7 +10,6 @@ import com.geek.websim.web.model.enums.ConditionOperator;
 import com.geek.websim.web.model.enums.ConditionSource;
 import com.geek.websim.web.model.enums.HttpMatchMode;
 import com.geek.websim.web.model.enums.ProtocolType;
-import com.geek.websim.web.model.enums.ResponseVariantStrategy;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -111,36 +110,12 @@ class SimulationMatcherTest {
     }
 
     @Test
-    void unconditionalBranchesInterleaveWithDefaultResponseWithoutRequestConditions() {
-        SimulationBranch errorBranch = branch("error", 0, SimulationResponse.builder()
-                .status(503)
-                .body("error")
-                .build());
-        SimulationMatcher matcher = matcher(httpConfig("interleave", "GET", "/api/interleave", HttpMatchMode.EXACT,
-                SimulationResponse.builder()
-                        .status(200)
-                        .body("ok")
-                        .build(),
-                errorBranch));
-
-        SimulationRequest request = SimulationRequest.builder()
-                .method("GET")
-                .path("/api/interleave")
-                .build();
-
-        assertThat(matcher.matchHttp(request).map(result -> result.getResponse().getStatus())).contains(200);
-        assertThat(matcher.matchHttp(request).map(result -> result.getResponse().getStatus())).contains(503);
-        assertThat(matcher.matchHttp(request).map(result -> result.getResponse().getStatus())).contains(200);
-        assertThat(matcher.matchHttp(request).map(result -> result.getResponse().getStatus())).contains(503);
-    }
-
-    @Test
     void unconditionalBranchProbabilityControlsWhetherBranchCanAppear() {
         SimulationBranch alwaysError = branch("always error", 0, SimulationResponse.builder()
                 .status(503)
                 .body("error")
                 .build());
-        alwaysError.setProbability(1.0);
+        alwaysError.setPriority(100);
         SimulationMatcher alwaysMatcher = matcher(httpConfig("always", "GET", "/api/probability", HttpMatchMode.EXACT,
                 SimulationResponse.builder().status(200).body("ok").build(),
                 alwaysError));
@@ -156,7 +131,7 @@ class SimulationMatcherTest {
                 .status(503)
                 .body("error")
                 .build());
-        neverError.setProbability(0.0);
+        neverError.setPriority(0);
         SimulationMatcher neverMatcher = matcher(httpConfig("never", "GET", "/api/probability", HttpMatchMode.EXACT,
                 SimulationResponse.builder().status(200).body("ok").build(),
                 neverError));
@@ -166,38 +141,10 @@ class SimulationMatcherTest {
     }
 
     @Test
-    void matchingBranchCyclesPrimaryAndVariantResponses() {
+    void matchingBranchReturnsPrimaryResponse() {
         SimulationBranch branch = branch("flaky", 0, response("ok"),
                 condition(ConditionSource.QUERY, "branch", ConditionOperator.EQ, "flaky"));
-        branch.setResponseVariants(List.of(
-                SimulationResponse.builder().status(500).body("error").build(),
-                SimulationResponse.builder().status(429).body("busy").build()));
-        branch.setVariantStrategy(ResponseVariantStrategy.ROUND_ROBIN);
         SimulationMatcher matcher = matcher(httpConfig("flaky", "GET", "/api/flaky", HttpMatchMode.EXACT,
-                response("default"),
-                branch));
-
-        SimulationRequest request = SimulationRequest.builder()
-                .method("GET")
-                .path("/api/flaky")
-                .query(Map.of("branch", "flaky"))
-                .build();
-
-        assertThat(matcher.matchHttp(request).map(result -> result.getResponse().getBody())).contains("ok");
-        assertThat(matcher.matchHttp(request).map(result -> result.getResponse().getBody())).contains("error");
-        assertThat(matcher.matchHttp(request).map(result -> result.getResponse().getBody())).contains("busy");
-        assertThat(matcher.matchHttp(request).map(result -> result.getResponse().getBody())).contains("ok");
-    }
-
-    @Test
-    void disabledResponseVariantsLeaveOnlyPrimaryResponseInCycle() {
-        SimulationBranch branch = branch("flaky", 0, response("ok"),
-                condition(ConditionSource.QUERY, "branch", ConditionOperator.EQ, "flaky"));
-        branch.setResponseVariants(List.of(
-                SimulationResponse.builder().status(500).body("error").build()));
-        branch.setResponseVariantsEnabled(false);
-        branch.setVariantStrategy(ResponseVariantStrategy.ROUND_ROBIN);
-        SimulationMatcher matcher = matcher(httpConfig("flaky-disabled", "GET", "/api/flaky", HttpMatchMode.EXACT,
                 response("default"),
                 branch));
 

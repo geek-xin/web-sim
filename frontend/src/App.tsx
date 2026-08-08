@@ -71,6 +71,8 @@ const EMPTY_RAW_STATE: RawConfigViewState = {
 
 const DESIGN_WIDTH = 1536;
 const DESIGN_HEIGHT = 960;
+// 100% 时整体紧凑比例：0.9 让全部组件等比缩小约 10%。
+const COMPACT_SCALE = 0.9;
 
 export default function App() {
   const configDir = readConfigDir();
@@ -441,7 +443,7 @@ function calculateViewportScale() {
   const viewport = window.visualViewport;
   const width = viewport?.width ?? window.innerWidth;
   const height = viewport?.height ?? window.innerHeight;
-  const nextScale = Math.min(1, width / DESIGN_WIDTH, height / DESIGN_HEIGHT);
+  const nextScale = Math.min(1, width / DESIGN_WIDTH, height / DESIGN_HEIGHT) * COMPACT_SCALE;
   return Math.max(0.25, Number(nextScale.toFixed(4)));
 }
 
@@ -453,9 +455,9 @@ function Hero({
   const displayConfigDir = shortenConfigDir(configDir);
 
   return (
-    <section className="chunky-panel hero-shell overflow-hidden bg-clay-paper p-7" aria-labelledby="web-sim-hero-title">
+    <section className="chunky-panel hero-shell overflow-hidden bg-clay-paper p-6" aria-labelledby="web-sim-hero-title">
       <div className="grid grid-cols-[minmax(0,1fr)_420px] items-stretch gap-6">
-        <div className="flex min-h-[270px] flex-col gap-14">
+        <div className="flex min-h-[220px] flex-col gap-8">
           <div className="flex flex-wrap items-center gap-3">
             <Badge variant="orange">WEB SIM</Badge>
             <Badge variant="mint">HTTP + TCP</Badge>
@@ -471,7 +473,7 @@ function Hero({
           </div>
         </div>
 
-        <Card className="chunky-card-blue flex min-h-[270px] flex-col justify-between overflow-hidden p-5">
+        <Card className="chunky-card-blue flex min-h-[220px] flex-col justify-between overflow-hidden p-5">
           <div className="grid gap-4">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -484,11 +486,11 @@ function Hero({
                 <FileJson className="h-6 w-6" />
               </span>
             </div>
-            <div className="chunky-code p-4">
+            <div className="chunky-code p-3">
               <code>{'{ "protocol": "HTTP", "enabled": true, "branches": [...] }'}</code>
             </div>
           </div>
-          <div className="flow-steps mt-5" aria-label="模拟流程预览">
+          <div className="flow-steps mt-4" aria-label="模拟流程预览">
             <FlowStep label="匹配" detail="路径 / 报文" />
             <span className="flow-arrow">→</span>
             <FlowStep label="分支" detail="条件" />
@@ -511,7 +513,7 @@ function OverviewCard({ label, value, detail, tone, icon }: { label: string; val
         </div>
         <span className="overview-stat-icon bg-white">{icon}</span>
       </div>
-      <p className="mt-4 text-sm font-extrabold leading-snug text-clay-muted">{detail}</p>
+      <p className="mt-3 text-sm font-extrabold leading-snug text-clay-muted">{detail}</p>
     </Card>
   );
 }

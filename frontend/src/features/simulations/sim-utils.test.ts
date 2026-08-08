@@ -5,11 +5,8 @@ import {
   defaultPayload,
   displayEndpoint,
   filterSimulations,
-  hasEnabledErrorBranch,
-  hasErrorBranch,
   normalizeTags,
   shouldResetProtocolPayload,
-  setErrorBranchesEnabled,
   tagFilterOptions,
   validatePayload,
 } from './sim-utils';
@@ -49,16 +46,7 @@ describe('simulation utilities', () => {
     expect(payload.protocol).toBe('HTTP');
     expect(payload.branches).toHaveLength(1);
     expect(payload.branches[0]?.name).toBe('成功分支');
-    expect(payload.branches[0]?.variantStrategy).toBe('ROUND_ROBIN');
-    expect(payload.branches[0]?.responseVariants).toEqual([
-      expect.objectContaining({ status: 500 }),
-    ]);
-    expect(payload.branches[0]?.conditions[0]).toMatchObject({
-      source: 'QUERY',
-      key: 'status',
-      operator: 'EQ',
-      value: 'ok',
-    });
+    expect(payload.branches[0]?.priority).toBe(100);
     expect(payload.branches[0]?.response.body).toContain('{{path.id}}');
     expect(payload.branches[0]?.response.body).toContain('{{random.uuid}}');
     expect(payload.defaultResponse.status).toBe(404);
@@ -69,16 +57,7 @@ describe('simulation utilities', () => {
 
     expect(payload.protocol).toBe('TCP');
     expect(payload.branches).toHaveLength(1);
-    expect(payload.branches[0]?.conditions[0]).toMatchObject({
-      source: 'TCP_BODY',
-      key: null,
-      operator: 'CONTAINS',
-      value: 'ping',
-    });
-    expect(payload.branches[0]?.variantStrategy).toBe('ROUND_ROBIN');
-    expect(payload.branches[0]?.responseVariants).toEqual([
-      expect.objectContaining({ status: 500 }),
-    ]);
+    expect(payload.branches[0]?.priority).toBe(100);
     expect(validatePayload(payload)).toEqual([]);
   });
 
@@ -125,20 +104,6 @@ describe('simulation utilities', () => {
     } satisfies SimulationConfigPayload;
 
     expect(validatePayload(payload)).toContain('默认响应状态码必须是 100 到 999 之间的整数。');
-  });
-
-  it('rejects invalid response variant status', () => {
-    const payload = {
-      ...defaultPayload('HTTP'),
-      branches: [
-        {
-          ...defaultPayload('HTTP').branches[0],
-          responseVariants: [{ status: 1000, headers: {}, body: 'invalid' }],
-        },
-      ],
-    } satisfies SimulationConfigPayload;
-
-    expect(validatePayload(payload)).toContain('分支 1 响应变体 1 状态码必须是 100 到 999 之间的整数。');
   });
 
   it('rejects null branch entries', () => {
@@ -206,76 +171,6 @@ describe('simulation utilities', () => {
     } satisfies SimulationConfigPayload;
 
     expect(validatePayload(payload)).not.toContain('分支 1 条件 1 值不能为空。');
-  });
-
-  it('toggles error branches with probability', () => {
-    const branches = [
-      {
-        name: '错误分支',
-        priority: 10,
-        conditions: [],
-        probability: 0.5,
-        response: { status: 503, headers: {}, body: 'error' },
-      },
-      {
-        name: '普通分支',
-        priority: 20,
-        conditions: [],
-        response: { status: 200, headers: {}, body: 'ok' },
-      },
-    ];
-
-    const disabled = setErrorBranchesEnabled(branches, false);
-    expect(disabled[0]?.probability).toBe(0);
-    expect(disabled[1]?.probability).toBeUndefined();
-    expect(hasEnabledErrorBranch(disabled)).toBe(false);
-
-    const enabled = setErrorBranchesEnabled(disabled, true);
-    expect(enabled[0]?.probability).toBe(0.5);
-    expect(hasEnabledErrorBranch(enabled)).toBe(true);
-  });
-
-  it('toggles error response variants without deleting their definitions', () => {
-    const branches = [
-      {
-        name: '成功分支',
-        priority: 0,
-        conditions: [],
-        response: { status: 200, headers: {}, body: 'ok' },
-        responseVariants: [
-          { status: 500, headers: {}, body: 'error' },
-        ],
-        variantStrategy: 'ROUND_ROBIN' as const,
-      },
-    ];
-
-    expect(hasErrorBranch(branches)).toBe(true);
-    expect(hasEnabledErrorBranch(branches)).toBe(true);
-
-    const disabled = setErrorBranchesEnabled(branches, false);
-    expect(disabled[0]?.responseVariantsEnabled).toBe(false);
-    expect(disabled[0]?.responseVariants).toHaveLength(1);
-    expect(hasEnabledErrorBranch(disabled)).toBe(false);
-
-    const enabled = setErrorBranchesEnabled(disabled, true);
-    expect(enabled[0]?.responseVariantsEnabled).toBe(true);
-    expect(enabled[0]?.responseVariants).toHaveLength(1);
-    expect(hasEnabledErrorBranch(enabled)).toBe(true);
-  });
-
-  it('does not reset branches when selecting the already active protocol', () => {
-    const payload = {
-      ...defaultPayload('HTTP'),
-      branches: [
-        {
-          ...defaultPayload('HTTP').branches[0],
-          responseVariantsEnabled: false,
-        },
-      ],
-    } satisfies SimulationConfigPayload;
-
-    expect(shouldResetProtocolPayload(payload.protocol, 'HTTP')).toBe(false);
-    expect(payload.branches[0]?.responseVariantsEnabled).toBe(false);
   });
 
   it('normalizes tags by trimming blanks and removing duplicates', () => {

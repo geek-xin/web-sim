@@ -195,24 +195,6 @@ class SimulationConfigServiceImplTest {
     }
 
     @Test
-    void createRejectsInvalidResponseVariantStatus() {
-        SimulationConfigServiceImpl service = new SimulationConfigServiceImpl(new ObjectMapper(), tempDir);
-        service.initDefaultConfigs();
-        SimulationConfig config = httpConfig("bad variant status", "/bad-variant-status");
-        config.setBranches(List.of(SimulationBranch.builder()
-                .name("flaky")
-                .response(SimulationResponse.builder().status(200).body("ok").build())
-                .responseVariants(List.of(SimulationResponse.builder().status(1000).body("bad").build()))
-                .build()));
-
-        assertThatThrownBy(() -> service.create(config))
-                .isInstanceOfSatisfying(BusinessException.class, exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(ErrorCodeEnum.BAD_REQUEST));
-    }
-
-
-
-    @Test
     void createRejectsEqConditionMissingValue() {
         SimulationConfigServiceImpl service = new SimulationConfigServiceImpl(new ObjectMapper(), tempDir);
         service.initDefaultConfigs();

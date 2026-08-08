@@ -10,7 +10,6 @@ import com.geek.websim.web.model.entity.SimulationResponse;
 import com.geek.websim.web.model.entity.TcpRule;
 import com.geek.websim.web.model.enums.HttpMatchMode;
 import com.geek.websim.web.model.enums.ProtocolType;
-import com.geek.websim.web.model.enums.ResponseVariantStrategy;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -18,21 +17,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class CompiledSimulationRule {
     private final SimulationConfig config;
     private final PathTemplate pathTemplate;
     private final List<SimulationBranch> sortedBranches;
-    private final List<AtomicLong> branchResponseSequences;
-    private final AtomicLong defaultBranchSequence = new AtomicLong();
 
     public CompiledSimulationRule(SimulationConfig config) {
         SimulationConfig frozenConfig = deepCopy(config);
         this.config = Objects.requireNonNull(frozenConfig, "config");
         this.pathTemplate = compileTemplate(frozenConfig);
         this.sortedBranches = sortedBranches(frozenConfig);
-        this.branchResponseSequences = responseSequences(this.sortedBranches.size());
     }
 
     public CompiledSimulationRule(SimulationConfig config, PathTemplate pathTemplate, List<SimulationBranch> sortedBranches) {
@@ -40,7 +35,6 @@ public class CompiledSimulationRule {
         this.config = Objects.requireNonNull(frozenConfig, "config");
         this.pathTemplate = pathTemplate == null ? compileTemplate(frozenConfig) : pathTemplate;
         this.sortedBranches = sortedBranches == null ? sortedBranches(frozenConfig) : freezeBranches(sortedBranches);
-        this.branchResponseSequences = responseSequences(this.sortedBranches.size());
     }
 
 
@@ -64,28 +58,14 @@ public class CompiledSimulationRule {
         if (branchIndex < 0 || branchIndex >= sortedBranches.size()) {
             return null;
         }
-        SimulationBranch branch = sortedBranches.get(branchIndex);
-        List<SimulationResponse> responses = responseCycle(branch);
-        if (responses.isEmpty()) {
-            return null;
-        }
-        if (responses.size() == 1) {
-            return copyResponse(responses.get(0));
-        }
-        int selectedIndex = selectedResponseIndex(branch, branchIndex, responses.size());
-        return copyResponse(responses.get(selectedIndex));
+        return copyResponse(sortedBranches.get(branchIndex).getResponse());
     }
 
     int selectDefaultOrUnconditionalBranch(List<Integer> branchIndexes) {
         if (branchIndexes == null || branchIndexes.isEmpty()) {
             return -1;
         }
-        if (branchIndexes.stream().anyMatch(index -> probability(sortedBranches.get(index)) != null)) {
-            return selectByProbability(branchIndexes);
-        }
-        long sequence = defaultBranchSequence.getAndIncrement();
-        int selectedSlot = Math.floorMod(sequence, branchIndexes.size() + 1);
-        return selectedSlot == 0 ? -1 : branchIndexes.get(selectedSlot - 1);
+        return selectByProbability(branchIndexes);
     }
 
     private static PathTemplate compileTemplate(SimulationConfig config) {
@@ -123,32 +103,12 @@ public class CompiledSimulationRule {
         return branch != null && branch.getResponse() != null;
     }
 
-    private static List<AtomicLong> responseSequences(int size) {
-        if (size <= 0) {
-            return List.of();
-        }
-        return java.util.stream.IntStream.range(0, size)
-                .mapToObj(ignored -> new AtomicLong())
-                .toList();
-    }
-
-    private int selectedResponseIndex(SimulationBranch branch, int branchIndex, int responseCount) {
-        ResponseVariantStrategy strategy = branch.getVariantStrategy() == null
-                ? ResponseVariantStrategy.ROUND_ROBIN
-                : branch.getVariantStrategy();
-        if (strategy == ResponseVariantStrategy.RANDOM) {
-            return ThreadLocalRandom.current().nextInt(responseCount);
-        }
-        long sequence = branchResponseSequences.get(branchIndex).getAndIncrement();
-        return Math.floorMod(sequence, responseCount);
-    }
-
     private int selectByProbability(List<Integer> branchIndexes) {
         double random = ThreadLocalRandom.current().nextDouble();
         double cumulative = 0;
         for (Integer branchIndex : branchIndexes) {
             SimulationBranch branch = sortedBranches.get(branchIndex);
-            cumulative += probability(branch) == null ? 0 : probability(branch);
+            cumulative += branchProbability(branch);
             if (random < cumulative) {
                 return branchIndex;
             }
@@ -156,25 +116,11 @@ public class CompiledSimulationRule {
         return -1;
     }
 
-    private Double probability(SimulationBranch branch) {
-        if (branch == null || branch.getProbability() == null) {
-            return null;
+    private double branchProbability(SimulationBranch branch) {
+        if (branch == null) {
+            return 0;
         }
-        return Math.max(0, Math.min(1, branch.getProbability()));
-    }
-
-    private static List<SimulationResponse> responseCycle(SimulationBranch branch) {
-        if (branch == null || branch.getResponse() == null) {
-            return List.of();
-        }
-        List<SimulationResponse> responses = new java.util.ArrayList<>();
-        responses.add(branch.getResponse());
-        if (branch.getResponseVariants() != null && branch.getResponseVariantsEnabled() != Boolean.FALSE) {
-            branch.getResponseVariants().stream()
-                    .filter(Objects::nonNull)
-                    .forEach(responses::add);
-        }
-        return responses;
+        return Math.max(0, Math.min(1, branch.getPriority() / 100.0));
     }
 
     private static SimulationConfig deepCopy(SimulationConfig source) {
@@ -244,21 +190,7 @@ public class CompiledSimulationRule {
                 .priority(source.getPriority())
                 .conditions(copyConditions(source.getConditions()))
                 .response(copyResponse(source.getResponse()))
-                .responseVariants(copyResponses(source.getResponseVariants()))
-                .responseVariantsEnabled(source.getResponseVariantsEnabled())
-                .variantStrategy(source.getVariantStrategy())
-                .probability(source.getProbability())
                 .build();
-    }
-
-    private static List<SimulationResponse> copyResponses(List<SimulationResponse> source) {
-        if (source == null || source.isEmpty()) {
-            return List.of();
-        }
-        return source.stream()
-                .filter(Objects::nonNull)
-                .map(CompiledSimulationRule::copyResponse)
-                .toList();
     }
 
     private static List<SimulationCondition> copyConditions(List<SimulationCondition> source) {
